@@ -1,0 +1,219 @@
+/* sunset.css — the garden `sunsets` coin (Session 75). See sunset.js.
+   Same veil / × / Esc-chip language as vlog.css and letter.css. */
+
+#sunVeil {
+  position: fixed; inset: 0; z-index: 200;
+  overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  cursor: grab;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .42s ease, visibility .42s;
+  --dusk: 0;
+}
+#sunVeil.show { opacity: 1; visibility: visible; pointer-events: auto; }
+#sunVeil.dragging { cursor: grabbing; }
+#sunVeil.set, #sunVeil.gallery { cursor: default; }
+#sunVeil * { box-sizing: border-box; }
+
+/* A light dusk wash over the garden so the sun reads as being in the sky.
+   Deliberately faint: the colour comes from the photo, not from this. */
+.sun-dusk {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(14,12,26,.42) 0%, rgba(14,12,26,.16) 45%, rgba(14,12,26,0) 70%),
+    rgba(8,8,14,.14);
+}
+
+/* The photo: cover-fitted by sunset.js (width/height/translate set inline so
+   its sun lines up with the end of the sun's path). */
+.sun-photo-wrap {
+  position: absolute; inset: 0; overflow: hidden;
+  opacity: 0; will-change: opacity;
+}
+.sun-photo {
+  position: absolute; left: 0; top: 0; display: block;
+  max-width: none; pointer-events: none;
+}
+#sunVeil.set .sun-photo-wrap { cursor: pointer; }
+
+/* The sun. Pale and bright up high, deep amber by the horizon (--warm is
+   the drag progress, 0..1). */
+.sun-orb {
+  position: absolute; left: 0; top: 0;
+  width: 110px; height: 110px; border-radius: 50%;
+  pointer-events: none; will-change: transform, opacity;
+  --warm: 0;
+}
+.sun-orb::before, .sun-orb::after, .sun-orb i {
+  content: ''; position: absolute; border-radius: 50%;
+}
+/* the glow */
+.sun-orb::before {
+  inset: -120%;
+  background: radial-gradient(circle, rgba(255,214,140,.55) 0%, rgba(255,170,90,.22) 28%, rgba(255,140,60,0) 60%);
+}
+/* the disc, pale */
+.sun-orb::after {
+  inset: 0;
+  background: radial-gradient(circle at 45% 42%, #fffdf2 0%, #fff1c4 45%, #ffd98a 100%);
+  box-shadow: 0 0 40px 10px rgba(255,226,160,.55);
+}
+/* the disc, warm — fades in over the pale one as it sinks */
+.sun-orb i {
+  inset: 0; z-index: 1;
+  background: radial-gradient(circle at 45% 42%, #fff0c8 0%, #ffb347 48%, #f07a2a 100%);
+  box-shadow: 0 0 46px 14px rgba(255,140,60,.5);
+  opacity: var(--warm);
+}
+@media (hover: hover) {
+  #sunVeil:not(.set):not(.gallery) .sun-orb::after { animation: sunBreathe 3.2s ease-in-out infinite; }
+}
+@keyframes sunBreathe { 50% { box-shadow: 0 0 58px 16px rgba(255,226,160,.7); } }
+
+/* "Drag the sun down", just under the sun, until they've pulled it a bit. */
+.sun-hint {
+  position: absolute; left: 0; top: 0; margin: 0;
+  padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+  background: rgba(16,19,26,.5); border: 1px solid rgba(255,226,138,.24);
+  color: #f6efe4; pointer-events: none;
+  font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  transition: opacity .35s ease;
+  animation: sunHintIn .6s .5s ease both;
+}
+.sun-hint::after {
+  content: '\2193'; display: inline-block; margin-left: 8px;
+  animation: sunNudge 1.4s ease-in-out infinite;
+}
+#sunVeil.moved .sun-hint, #sunVeil.set .sun-hint { opacity: 0; }
+@keyframes sunHintIn { from { opacity: 0; } }
+@keyframes sunNudge { 50% { transform: translateY(4px); } }
+
+/* "Tap the sunset to see more": shows a beat after it has set. */
+.sun-tap {
+  position: absolute; left: 50%; bottom: 76px; z-index: 2;
+  white-space: nowrap;
+  transform: translate(-50%, 8px);
+  padding: 9px 18px; border-radius: 999px;
+  background: rgba(16,19,26,.55); border: 1px solid rgba(255,226,138,.3);
+  color: #f6efe4; cursor: pointer;
+  font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  opacity: 0; visibility: hidden;
+  transition: opacity .5s ease, transform .5s ease, visibility .5s, background .15s ease;
+}
+#sunVeil.can-tap .sun-tap { opacity: 1; visibility: visible; transform: translate(-50%, 0); animation: sunTapPulse 2.4s 1s ease-in-out infinite; }
+.sun-tap:hover { background: rgba(16,19,26,.8); }
+@keyframes sunTapPulse { 50% { box-shadow: 0 0 0 6px rgba(255,226,138,.12); } }
+
+/* ---- the gallery: one sunset at a time ---------------------------------- */
+.sun-gallery {
+  position: absolute; inset: 0; z-index: 3;
+  background: transparent;
+  opacity: 0; visibility: hidden;
+  transition: opacity .55s ease, visibility .55s;
+  touch-action: pan-y;
+}
+#sunVeil.gallery .sun-gallery { opacity: 1; visibility: visible; }
+.sun-slides { position: absolute; inset: 0; }
+.sun-gallery::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 160px; z-index: 1;
+  background: linear-gradient(0deg, rgba(0,0,0,.45), rgba(0,0,0,0)); pointer-events: none;
+}
+.sun-slide {
+  position: absolute; inset: 0; margin: 0; overflow: hidden;
+  opacity: 0;
+  transition: opacity .7s ease;
+  pointer-events: none;
+}
+.sun-slide.on { opacity: 1; z-index: 1; }
+/* the outgoing one stays solid underneath while the new one fades in on
+   top, so a change is a clean crossfade with no dip to black */
+.sun-slide.prev { opacity: 1; transition: none; }
+/* Full-bleed, exactly like the first sunset: no frame, no border. */
+.sun-slide img {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  object-fit: cover; object-position: 50% 55%;
+  transform: scale(1.04);
+  transition: transform 6s ease-out;
+}
+.sun-slide.on img { transform: none; }
+
+.sun-nav {
+  position: absolute; top: 50%; z-index: 2;
+  width: 44px; height: 44px; margin-top: -22px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(16,19,26,.5); border: 1px solid rgba(255,226,138,.26);
+  color: #f6efe4; cursor: pointer;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: background .15s ease, transform .1s ease;
+}
+.sun-nav:hover { background: rgba(16,19,26,.8); }
+.sun-nav:active { transform: scale(.93); }
+.sun-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.sun-prev { left: 18px; }
+.sun-next { right: 18px; }
+
+.sun-dots {
+  position: absolute; left: 50%; bottom: 70px; z-index: 2;
+  transform: translateX(-50%);
+  display: flex; gap: 10px;
+}
+.sun-dots button {
+  width: 8px; height: 8px; padding: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(246,239,228,.35); border: 0;
+  transition: background .2s ease, transform .2s ease;
+}
+.sun-dots button.on { background: #ffd166; transform: scale(1.3); }
+
+/* ---- close controls (same as the vlog) ---------------------------------- */
+.sun-close {
+  position: fixed; top: 22px; right: 24px; z-index: 202;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(20,15,10,.55); border: 1px solid rgba(255,226,138,.28);
+  color: #f6efe4; font-size: 18px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s ease, transform .1s ease;
+}
+.sun-close:hover { background: rgba(20,15,10,.8); }
+.sun-close:active { transform: scale(.94); }
+.sun-esc {
+  position: fixed; left: 50%; bottom: 26px; z-index: 202;
+  transform: translateX(-50%);
+  padding: 7px 14px; border-radius: 999px;
+  background: rgba(16,19,26,.55); border: 1px solid rgba(255,226,138,.22);
+  color: rgba(246,239,228,.78); cursor: pointer;
+  font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+}
+.sun-esc:hover { color: #f6efe4; background: rgba(16,19,26,.8); }
+.sun-esc kbd {
+  font: inherit; padding: 1px 6px; margin-right: 4px; border-radius: 5px;
+  border: 1px solid rgba(246,239,228,.45); background: rgba(255,255,255,.06);
+}
+.sun-esc-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .sun-esc-key { display: none; }
+  .sun-esc-touch { display: inline; }
+}
+.sun-close:focus, .sun-esc:focus, .sun-nav:focus, .sun-tap:focus, .sun-dots button:focus { outline: none; }
+.sun-close:focus-visible, .sun-esc:focus-visible, .sun-nav:focus-visible, .sun-tap:focus-visible, .sun-dots button:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+
+/* The star's lines type top-left once the sun has set: lift the HUD above
+   the veil (and its controls at 202), with a denser backing over the photo. */
+body:has(#sunVeil.show) #storyHud {
+  z-index: 203;
+  background: linear-gradient(168deg, rgba(16,19,26,.72), rgba(16,19,26,.86));
+}
+
+@media (max-width: 520px) {
+  .sun-close { top: 14px; right: 14px; width: 34px; height: 34px; }
+  .sun-nav { top: auto; bottom: 58px; margin-top: 0; width: 38px; height: 38px; }
+  .sun-prev { left: 14px; }
+  .sun-next { right: 14px; }
+  .sun-dots { bottom: 72px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #sunVeil, .sun-slide, .sun-gallery, .sun-tap { transition: none !important; }
+  .sun-orb::after, .sun-hint, .sun-hint::after, .sun-tap { animation: none !important; }
+}

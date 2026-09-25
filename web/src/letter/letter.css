@@ -1,0 +1,253 @@
+/* the map star's envelope + letter (Session 41, photos swapped in Session 42)
+   ------------------------------------------------------------------------
+   Self-built like #tlVeil (timeline.js): a fixed full-screen veil, hidden
+   until Letter.open() adds .show. z-index 200/202 — the same band as the
+   art timeline. The two never open together (only one star's reveal() can
+   be mid-flight at a time), so there's nothing to race.
+
+   Unlike the timeline, this does NOT own the narration: #storyHud (z 35)
+   keeps typing top-left the whole time this is up, by design — see
+   letter.js's header comment. That's also why there's no dark, fully
+   opaque veil here the way #tlVeil has: this reads as something that has
+   come up in front of the scene, not a separate screen replacing it.
+
+   Session 42 — real photos, not a CSS-drawn envelope. Two source images
+   (Apoorva's "letter close.webp" / "letter open.png") were different
+   sizes and crops; letter.js's header comment has the exact re-export
+   numbers. What ships here is envelope-closed.png / envelope-open.png,
+   both already the same 486x506 canvas with the envelope's own body drawn
+   at the same width and bottom-aligned — so this stylesheet can treat
+   them as one consistent object and just crossfade between the two,
+   with no per-image size correction needed here. */
+#ltrVeil {
+  --env-w: min(460px, 82vw);
+  --env-ratio: 486 / 506;   /* envelope-closed.png / envelope-open.png's shared canvas */
+  --paper: #efe3c8;
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(120% 90% at 50% 46%, rgba(24,16,8,.30), rgba(10,7,4,.74));
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .35s ease, visibility .35s;
+}
+#ltrVeil.show { opacity: 1; visibility: visible; pointer-events: auto; }
+#ltrVeil * { box-sizing: border-box; }
+
+.ltr-close {
+  position: fixed; top: 22px; right: 24px; z-index: 202;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(20,15,10,.55); border: 1px solid rgba(255,226,138,.28);
+  color: var(--ink, #f6efe4); font-size: 18px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s ease, transform .1s ease;
+}
+.ltr-close:hover { background: rgba(20,15,10,.8); }
+.ltr-close:active { transform: scale(.94); }
+.ltr-close:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+
+/* Session 49: the envelope and the letter are focusable (role=button,
+   tabindex=0), so once one has been clicked, pressing Esc made the browser
+   show its default keyboard-focus ring — the big white box around the
+   envelope. They're clicked, not tabbed to, so no ring. */
+.ltr-envelope:focus, .ltr-envelope:focus-visible,
+.ltr-letter:focus, .ltr-letter:focus-visible { outline: none; }
+
+.ltr-scene {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  transform: translateY(10px) scale(.96); opacity: 0;
+  transition: opacity .4s ease, transform .4s ease;
+}
+#ltrVeil.show .ltr-scene { opacity: 1; transform: translateY(0) scale(1); }
+
+.ltr-envelope {
+  position: relative; width: var(--env-w); aspect-ratio: var(--env-ratio);
+  cursor: pointer;
+}
+#ltrVeil.opened .ltr-envelope { cursor: default; }
+
+/* the two photos, stacked and crossfaded — see the file header for why
+   they can just sit at inset:0/100% now instead of needing per-image
+   sizing. object-fit: contain is belt-and-braces in case either gets
+   re-exported at a slightly different canvas later. */
+.ltr-env-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; pointer-events: none; user-select: none;
+  filter: drop-shadow(0 26px 40px rgba(0,0,0,.55));
+  transition: opacity .4s ease;
+}
+.ltr-env-closed { z-index: 1; opacity: 1; }
+.ltr-env-open   { z-index: 2; opacity: 0; }
+#ltrVeil.opened .ltr-env-closed { opacity: 0; }
+#ltrVeil.opened .ltr-env-open   { opacity: 1; }
+
+/* The reveal window. Its bottom edge sits at ~40% down the envelope
+   canvas — roughly where the open photo's flap crease sits, i.e. the
+   envelope's "mouth" — and it extends generously above and to the sides
+   so the fully-risen letter is never clipped by its own top edge. Because
+   this is overflow:hidden, the letter genuinely disappears once it slides
+   below the mouth line — not an opacity trick, an actual clip, which is
+   what sells "sliding out of the envelope" rather than "fading in front
+   of it". z-index sits above both envelope photos so the risen letter
+   reads as in front of the (now open) flap.
+   Session 43: Apoorva's real-browser screenshot showed the resting letter
+   floating mostly ABOVE the envelope, clear of it — she wanted it resting
+   IN FRONT of the envelope instead, overlapping down over the flap and
+   body. `bottom` (the mask's own lower edge) moved from 60% to 25% — i.e.
+   the clip window now reaches much further down the envelope, so the
+   letter can come to rest overlapping the body without its own bottom
+   edge getting clipped off by the mask. */
+.ltr-letter-mask {
+  position: absolute; left: 0; right: 0;
+  top: -60%; bottom: 25%;
+  overflow: hidden; z-index: 3;
+}
+
+.ltr-letter {
+  position: absolute; left: 50%; bottom: -45%;
+  width: 74%; aspect-ratio: 1748 / 1240;
+  perspective: 1600px;
+  transform: translateX(-50%) scale(.93);
+  /* -45% puts the letter's top edge just below the mask's (now lower)
+     bottom edge — fully clipped, with a little margin, not buried far
+     off-screen. Kept that close on purpose: Apoorva asked for a SLOW
+     slide, and the same 1.3s duration over a shorter distance reads as
+     slower and more deliberate than a long throw would.
+     `width` is transitioned too now (Session 45's zoom), at the same 1.3s
+     as `bottom`/`transform` so un-zooming (falling back to this base rule
+     from `.zoomed` — see below) grows/shrinks in step rather than one
+     property finishing before the others. */
+  transition: bottom 1.3s cubic-bezier(.22,.61,.28,1), transform 1.3s cubic-bezier(.22,.61,.28,1),
+              width 1.3s cubic-bezier(.22,.61,.28,1);
+}
+#ltrVeil.opened .ltr-letter {
+  bottom: 10%;
+  transform: translateX(-50%) scale(1);
+  transition-delay: .2s;   /* starts rising just after the flap begins lifting */
+  cursor: pointer;
+}
+#ltrVeil.closing .ltr-letter {
+  bottom: -45%;
+  transform: translateX(-50%) scale(.93);
+  transition-duration: 1.05s;   /* SLIDE_CLOSE_MS in letter.js — a touch quicker back in */
+  transition-delay: 0s;
+}
+
+/* Session 45 — "after it comes out, it is zoomed in... bigger and in the
+   centre of screen." letter.js's `_zoomIn()` adds `.zoomed` on its own
+   timer, a beat after the rise above finishes; Esc (`close()`) removes it
+   before the retract, so it always shrinks back down first.
+
+   `width` uses real viewport units, not a percentage of the (much
+   smaller) envelope — 2x the envelope's own width, same `--env-w` custom
+   property the envelope itself uses so this always scales exactly with
+   it, capped at 86vw so it can never spill off a narrow screen.
+
+   `bottom` looks like an odd number (a big NEGATIVE percentage, not "a
+   bit more than 10%") because it isn't "a bit further out of the
+   envelope" — the letter is now much taller than the small resting size,
+   so centring it on the screen means centring it on the ENVELOPE (itself
+   roughly centred by #ltrVeil's own flex layout), which the small
+   resting spot was never trying to do. Solved once, algebraically, from
+   the mask's own geometry (see the mask's comment above for those
+   numbers) and checked with a real-asset mock at both a desktop and a
+   phone width before shipping — see claude/session-45-letter-zoom.md.
+   Exact centring isn't achievable with plain CSS across every screen size
+   (the 86vw safety cap doesn't scale in lockstep with --env-w on a narrow
+   phone) — verified it lands close enough there too, not dead-centre. */
+#ltrVeil.zoomed .ltr-letter-mask {
+  /* The mask's whole job is clipping the letter to "inside the envelope"
+     while it's small — once it's grown past that on purpose, letting it
+     spill outside the mask's own (small) box is the point, not a bug. */
+  overflow: visible;
+}
+#ltrVeil.zoomed .ltr-env-img {
+  /* The now much-bigger letter sits in front of, and partly over, the
+     envelope art — fade the envelope down so it reads as "still there,
+     just not the focus" instead of clutter behind the letter. */
+  opacity: .28;
+}
+#ltrVeil.zoomed .ltr-letter {
+  width: min(calc(var(--env-w) * 2), 86vw);
+  bottom: -30%;
+  transform: translateX(-50%) scale(0.8);
+  transition: bottom .9s cubic-bezier(.22,.61,.28,1), transform .9s cubic-bezier(.22,.61,.28,1),
+              width .9s cubic-bezier(.22,.61,.28,1);
+  cursor: pointer;
+}
+/* Esc, shrinking back down: `.opened .ltr-letter` above (bottom:10%, its
+   base width/scale) is what it's animating BACK TO, but that rule also
+   carries `transition-delay: .2s` — right for the very first rise (a
+   deliberate beat after the flap starts lifting), wrong here, where it
+   would leave close()'s staged timers (letter.js's `unzoom()`) waiting on
+   a transition that hasn't actually started yet. `.unzooming` is its own
+   short-lived class (added and removed by `unzoom()`, never coexisting
+   with `.zoomed`) purely to give the shrink-back its own zero-delay,
+   .9s-matched transition — same target values as `.opened` alone would
+   give it, just timed correctly. */
+#ltrVeil.unzooming .ltr-letter {
+  bottom: 10%;
+  transform: translateX(-50%) scale(1);
+  transition: bottom .9s cubic-bezier(.22,.61,.28,1), transform .9s cubic-bezier(.22,.61,.28,1),
+              width .9s cubic-bezier(.22,.61,.28,1);
+  cursor: pointer;
+}
+
+.ltr-letter-inner {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .6s cubic-bezier(.4,0,.2,1);
+}
+#ltrVeil.flipped .ltr-letter-inner { transform: rotateY(180deg); }
+
+.ltr-letter-face {
+  position: absolute; inset: 0; overflow: hidden; border-radius: 6px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  box-shadow: 0 24px 46px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.25);
+  background: var(--paper);
+}
+.ltr-letter-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ltr-letter-back { transform: rotateY(180deg); }
+
+.ltr-hint {
+  margin: 0; font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(246,239,228,.62); text-align: center;
+  transition: opacity .3s ease;
+}
+/* The zoomed letter (position:absolute, z-index 3) sits over the hint's own
+   spot in the normal-flow layout below the envelope — fade the hint out
+   rather than let a big photo print through underneath it. */
+#ltrVeil.zoomed .ltr-hint { opacity: 0; }
+
+/* Session 57 — "Esc to close", on screen for the whole time the letter is
+   up (the .ltr-hint above fades out once the letter zooms). Clickable, so
+   on a phone it's the close control too. Same chip as vlog.css's .vlg-esc. */
+.ltr-esc {
+  position: fixed; left: 50%; bottom: 26px; z-index: 202;
+  transform: translateX(-50%);
+  padding: 7px 14px; border-radius: 999px;
+  background: rgba(20,15,10,.55); border: 1px solid rgba(255,226,138,.22);
+  color: rgba(246,239,228,.78); cursor: pointer;
+  font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+}
+.ltr-esc:hover { color: #f6efe4; background: rgba(20,15,10,.8); }
+.ltr-esc:focus { outline: none; }
+.ltr-esc:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+.ltr-esc kbd {
+  font: inherit; padding: 1px 6px; margin-right: 4px; border-radius: 5px;
+  border: 1px solid rgba(246,239,228,.45); background: rgba(255,255,255,.06);
+}
+.ltr-esc-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .ltr-esc-key { display: none; }
+  .ltr-esc-touch { display: inline; }
+}
+
+@media (max-width: 520px) {
+  #ltrVeil { --env-w: min(360px, 86vw); }
+  .ltr-close { top: 14px; right: 14px; width: 34px; height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ltr-env-img, .ltr-letter, .ltr-letter-inner, .ltr-scene, .ltr-hint { transition: none !important; }
+}

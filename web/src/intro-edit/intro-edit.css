@@ -1,0 +1,21 @@
+.intro.editing{pointer-events:none}
+.intro.editing .intro-choice{pointer-events:auto}
+#introEdit{position:fixed;left:14px;top:14px;z-index:95;width:360px;max-height:calc(100vh - 28px);overflow:auto;
+  box-sizing:border-box;padding:14px 14px 12px;border-radius:14px;background:rgba(20,18,56,.93);color:#FBE7C6;
+  font:13px/1.4 system-ui,sans-serif;box-shadow:0 18px 50px rgba(0,0,0,.45);border:1px solid rgba(231,184,114,.4)}
+#introEdit h3{margin:0 0 2px;font-size:14px;color:#E7B872}
+#introEdit small{display:block;color:#cfc3e6;opacity:.85;margin-bottom:8px}
+#introEdit label{display:grid;grid-template-columns:110px 1fr 48px;align-items:center;gap:8px;margin:6px 0}
+#introEdit input[type=range]{width:100%;accent-color:#FF6B9A}
+#introEdit output{text-align:right;font-variant-numeric:tabular-nums;color:#E7B872}
+#introEdit textarea{width:100%;box-sizing:border-box;height:250px;resize:vertical;border-radius:8px;border:1px solid rgba(231,184,114,.35);
+  background:rgba(8,8,30,.6);color:#FBE7C6;font:12px/1.5 ui-monospace,monospace;padding:8px}
+#introEdit .row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#introEdit button{font:inherit;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;background:#2E3480;color:#FBE7C6}
+#introEdit button.pink{background:#C8305F}
+#introEdit button:hover{filter:brightness(1.15)}
+#introEdit hr{border:0;border-top:1px solid rgba(231,184,114,.25);margin:12px 0}
+#introEdit .msg{min-height:1.2em;margin-top:6px;color:#9fe0b0}
+#introEdit.min .body{display:none}
+canvas.over-greeter.edit-drag{cursor:grab !important}
+canvas.dragging-greeter{cursor:grabbing !important}

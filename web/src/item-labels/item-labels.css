@@ -1,0 +1,31 @@
+/* hover name tags on things in the house (item-labels.js) */
+#itemTag {
+  position: fixed; z-index: 30; pointer-events: none;
+  transform: translate(-50%, -100%) translateY(4px) scale(.94);
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  font-family: var(--font-major); font-size: 12.5px; letter-spacing: .04em;
+  color: var(--ink);
+  background: linear-gradient(168deg, rgba(16,19,26,.46), rgba(16,19,26,.62));
+  border: 1px solid rgba(255,209,102,.55);
+  box-shadow: 0 10px 26px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.28);
+  backdrop-filter: blur(10px) saturate(1.4); -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  text-shadow: 0 1px 8px rgba(0,0,0,.5);
+  opacity: 0; visibility: hidden;
+  transition: opacity .18s ease, transform .18s ease, visibility .18s;
+}
+#itemTag.show { opacity: 1; visibility: visible; transform: translate(-50%, -100%) scale(1); }
+/* Session 30: the music-wall tags carry a short description under the
+   title (item-labels.js's `withDesc` path) — the plain pill above is
+   nowrap/single-line, so this variant switches to a wrapping rounded
+   card instead, same glass, same rim. */
+#itemTag.withDesc {
+  white-space: normal; text-align: center; border-radius: 16px;
+  padding: 10px 16px; max-width: 240px;
+}
+#itemTag .tagTitle {
+  display: block; font-family: var(--font-major); font-size: 12.5px; letter-spacing: .04em;
+}
+#itemTag .tagDesc {
+  display: block; margin-top: 4px; font-family: var(--font-body); font-size: 12px;
+  line-height: 1.35; font-weight: 400; letter-spacing: .01em; opacity: .8;
+}

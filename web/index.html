@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>MeraGHAR — walkthrough</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Loaded non-render-blocking: a plain rel=stylesheet here holds up the
+     very first paint — including the loading screen itself — on a round trip
+     to Google's servers. media="print" makes the browser fetch it without
+     waiting on it, and the onload flips it to the real stylesheet once it
+     lands; the noscript copy is the normal blocking fallback for anyone
+     without JS. -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Coda:wght@400;800&family=Bitcount+Grid+Single:wght@100..900&family=Space+Mono:wght@400;700&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Coda:wght@400;800&family=Bitcount+Grid+Single:wght@100..900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Coda:wght@400;800&family=Bitcount+Grid+Single:wght@100..900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="./src/shared/base.css">
+<link rel="stylesheet" href="./src/main/main.css">
+<link rel="stylesheet" href="./src/guide/guide.css">
+<link rel="stylesheet" href="./src/story/story.css">
+<link rel="stylesheet" href="./src/item-labels/item-labels.css">
+<link rel="stylesheet" href="./src/navbar/navbar.css">
+<link rel="stylesheet" href="./src/shared/glass.css">
+<link rel="stylesheet" href="./src/shared/typography.css">
+<link rel="stylesheet" href="./src/intro/intro.css">
+<link rel="stylesheet" href="./src/intro-edit/intro-edit.css">
+<link rel="stylesheet" href="./src/timeline/timeline.css">
+<link rel="stylesheet" href="./src/letter/letter.css">
+<link rel="stylesheet" href="./src/vlog/vlog.css">
+<link rel="stylesheet" href="./src/sunset/sunset.css">
+<link rel="stylesheet" href="./src/book/book.css">
+<link rel="stylesheet" href="./src/loader-fx/loader-fx.css">
+<link rel="stylesheet" href="./src/finale/finale.css">
+<link rel="stylesheet" href="./src/tutorial/tutorial.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/jsm/",
+    "three-mesh-bvh": "./vendor/three-mesh-bvh.module.js"
+  }
+}
+</script>
+<!-- Without these, the browser doesn't discover either the entry module or
+     the 10+ MB house model until it has parsed all the way down to the
+     <script> tag at the bottom of the body — everything above (fonts, ten
+     stylesheets) goes first. These two hints let both start over the wire
+     in parallel with that, rather than after it. -->
+<link rel="modulepreload" href="./src/main/main.js">
+<link rel="preload" as="fetch" href="../MeraGHAR.glb" crossorigin>
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <div id="room"></div>
+  <div id="debug"></div>
+
+  <div id="hint">
+    <b>Click</b> where you want to go <span>·</span> <b>Drag</b> to look around
+  </div>
+
+
+  <div id="prompt"></div>
+  <!-- Session 29: the non-blocking, top-left typewriter for every star and
+       easter egg's script — see story.js's startHud()/updateHud()/paintHud().
+       Click anywhere on it to finish the line instantly, or to skip straight
+       to the next one once it's fully typed. -->
+  <div id="storyHud" aria-live="polite"><span id="storyHudText"></span></div>
+  <div id="storyVeil"></div>
+  <div id="story" role="dialog" aria-modal="true" aria-live="polite" aria-label="A small discovery">
+    <span id="storyKicker"></span>
+    <div id="storySaid" hidden>Apoorva</div>
+    <div id="storyText"></div>
+    <div id="storyNote" hidden></div>
+    <div id="storyChoices" hidden></div>
+    <div id="storyFoot">
+      <span id="storyStep"></span>
+      <span><button id="storyNext" type="button">Next</button><button id="storyClose" type="button">Close</button></span>
+    </div>
+  </div>
+  <button id="standup" type="button">Stand up <span style="opacity:.5">Esc</span></button>
+
+  <div id="choose">
+    <h2>Take me to</h2>
+    <div id="chooseList"></div>
+  </div>
+  <button id="doorTag" type="button">Open the door</button>
+
+  <!-- navbar ------------------------------------------------------------- -->
+  <div id="navbar">
+    <button id="navMap" class="navbtn" type="button" title="House map" aria-label="House map">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 3L3 5.5v15L9 18V3z" fill="#7fc98c"></path>
+        <path d="M9 3v15l6 2.5V5.5L9 3z" fill="#f2dfa8"></path>
+        <path d="M15 5.5V20.5l6-2.5v-15l-6 2.5z" fill="#6fb8e6"></path>
+        <path d="M9 3v15M15 5.5V20.5" stroke="#0f1019" stroke-width="1.1" opacity="0.28"></path>
+        <path d="M5.3 15.8c2-3.2 4.5-4.2 7-2.1s4.2 1 6.1-1.6" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="2.4 2.6" opacity="0.9">
+          <animate attributeName="stroke-dashoffset" values="0;-10" dur="1.1s" repeatCount="indefinite"></animate>
+        </path>
+        <circle cx="17.2" cy="9" r="1.9" fill="#ff5d73"></circle>
+        <circle cx="17.2" cy="9" r="1.9" fill="none" stroke="#ff5d73" stroke-width="1">
+          <animate attributeName="r" values="1.9;4.6;1.9" dur="1.7s" repeatCount="indefinite"></animate>
+          <animate attributeName="opacity" values="0.8;0;0.8" dur="1.7s" repeatCount="indefinite"></animate>
+        </circle>
+      </svg>
+    </button>
+
+    <button id="navStar" class="navbtn" type="button" title="What you've found" aria-label="What you've found">
+      <span class="starSlot" aria-hidden="true"></span>
+      <span id="starCount">0/8</span>
+    </button>
+
+    <button id="navContact" class="navbtn" type="button" title="Get in touch" aria-label="Get in touch">
+      <img class="navIcon" src="src/assets/icons/mail.png" alt="" draggable="false">
+    </button>
+
+    <!-- Session 25: background music, an icon at the foot of the navbar
+         (was a "Music on/off" pill at the top left). -->
+    <button id="musicToggle" class="navbtn" type="button" title="Music: off" aria-label="Turn music on" aria-pressed="false">
+      <span class="musicOff"><img class="navIcon" src="src/assets/icons/note.png" alt="" draggable="false"></span>
+      <span class="musicOn"><img class="navIcon" src="src/assets/icons/note.png" alt="" draggable="false"></span>
+    </button>
+
+    <!-- The ✨, floating over #navStar rather than inside it — see the
+         "WHY IT IS NOT INSIDE THE BUTTON" note in the stylesheet. -->
+    <span class="starWrap" aria-hidden="true">
+      <span class="starGem"></span>
+      <svg class="starArt" width="28" height="28" viewBox="0 0 24 24">
+      <defs>
+        <linearGradient id="starTint" x1="0" y1="0" x2="0.75" y2="1">
+          <stop offset="0"   stop-color="#fff6cf" stop-opacity="0.62"></stop>
+          <stop offset="0.45" stop-color="#ffd166" stop-opacity="0.34"></stop>
+          <stop offset="1"   stop-color="#f0a713" stop-opacity="0.44"></stop>
+        </linearGradient>
+        <linearGradient id="starRim" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0"   stop-color="#fffdf3" stop-opacity="0.95"></stop>
+          <stop offset="0.55" stop-color="#ffe9ab" stop-opacity="0.35"></stop>
+          <stop offset="1"   stop-color="#ffc247" stop-opacity="0.7"></stop>
+        </linearGradient>
+        <clipPath id="starClip">
+          <path d="M9 5.7Q9 13.5 16.8 13.5Q9 13.5 9 21.3Q9 13.5 1.2 13.5Q9 13.5 9 5.7Z
+                   M18.2 1.8Q18.2 6.2 22.6 6.2Q18.2 6.2 18.2 10.6Q18.2 6.2 13.8 6.2Q18.2 6.2 18.2 1.8Z
+                   M18.8 14.8Q18.8 17.8 21.8 17.8Q18.8 17.8 18.8 20.8Q18.8 17.8 15.8 17.8Q18.8 17.8 18.8 14.8Z"></path>
+        </clipPath>
+      </defs>
+
+      <!-- yellow tint over the refraction, then the specular sheen the
+           glass catches along its upper-left faces -->
+      <g clip-path="url(#starClip)">
+        <path d="M0 0h24v24H0z" fill="url(#starTint)"></path>
+        <path d="M-4 10L14 -6L20 0L2 16Z" fill="#fffbe8" opacity="0.34"></path>
+        <path d="M-2 22L10 10L13 13L1 25Z" fill="#fff3c8" opacity="0.13"></path>
+      </g>
+
+      <!-- the 1px rim: bright where light lands, amber where it doesn't -->
+      <path d="M9 5.7Q9 13.5 16.8 13.5Q9 13.5 9 21.3Q9 13.5 1.2 13.5Q9 13.5 9 5.7Z
+               M18.2 1.8Q18.2 6.2 22.6 6.2Q18.2 6.2 18.2 10.6Q18.2 6.2 13.8 6.2Q18.2 6.2 18.2 1.8Z
+               M18.8 14.8Q18.8 17.8 21.8 17.8Q18.8 17.8 18.8 20.8Q18.8 17.8 15.8 17.8Q18.8 17.8 18.8 14.8Z"
+            fill="none" stroke="url(#starRim)" stroke-width="0.75" stroke-linejoin="round"></path>
+
+      <!-- two catchlights, breathing out of phase so it twinkles -->
+      <circle cx="7.1" cy="11.4" r="1.05" fill="#fffdf2" opacity="0.75">
+        <animate attributeName="opacity" values="0.75;0.28;0.75" dur="2.6s" repeatCount="indefinite"></animate>
+      </circle>
+      <circle cx="17.6" cy="5.3" r="0.6" fill="#fffdf2" opacity="0.35">
+        <animate attributeName="opacity" values="0.3;0.9;0.3" dur="2.1s" begin="0.5s" repeatCount="indefinite"></animate>
+      </circle>
+  </svg>
+    </span>
+  </div>
+
+  <div id="starPop" class="pop">
+    <header>
+      <h3>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5l2.4 5.6 6 .5-4.6 4 1.4 5.9L12 16.4l-5.2 3.1 1.4-5.9-4.6-4 6-.5L12 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+        Things you've found so far
+      </h3>
+      <button id="starClose" class="x" type="button" aria-label="Close">&times;</button>
+    </header>
+    <ul id="starList"></ul>
+    <div id="starExtra"></div>
+  </div>
+
+  <div id="contactPop" class="pop">
+    <header>
+      <h3>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"></rect><path d="M4 7l8 6l8-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        Get in touch
+      </h3>
+      <button id="contactClose" class="x" type="button" aria-label="Close">&times;</button>
+    </header>
+    <div id="contactBody"></div>
+  </div>
+
+  <div id="toast">
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="#f4d35e" d="M12 2.5l2.62 6.36 6.88.56-5.24 4.53 1.6 6.72L12 17.9l-5.86 3.77 1.6-6.72L2.5 9.42l6.88-.56L12 2.5z"></path></svg>
+    <span id="toastText"></span>
+  </div>
+
+  <div id="mapWrap">
+    <div id="mapDialog">
+      <div id="mapHead">
+        <h2>House map</h2>
+        <button id="mapClose" type="button" aria-label="Close the map">&times;</button>
+      </div>
+      <div id="mapPanel"><div id="mapRing"></div></div>
+      <div id="mapFoot">
+        <div id="mapFootL">
+          <div id="mapHint">Select a room to take you there</div>
+          <div id="mapKey"></div>
+        </div>
+        <button id="mapGo" type="button" disabled>Take me there</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loader">
+    <h1>Mera Ghar</h1>
+    <div id="track"><div id="bar"></div></div>
+    <div id="status">loading the house…</div>
+  </div>
+
+  <!-- Session 69: the loading screen's little show. Its own module with no
+       imports, ahead of main.js, so it starts while three.js and the house
+       are still downloading. main.js calls window.MeraLoader.finish(). -->
+  <script type="module" src="./src/loader-fx/loader-fx.js"></script>
+  <script type="module" src="./src/main/main.js"></script>
+</body>
+</html>

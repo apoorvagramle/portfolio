@@ -1,0 +1,24 @@
+/* loader-fx.css — the loading screen builds the house (Session 69b). See loader-fx.js.
+   The stage is the whole screen, so the ending can hand over to the porch
+   shot frame for frame. The sky goes from soft day to dusk as the windows
+   light (--lfx-dusk), and the title and status step back once the camera
+   starts its move (--lfx-cam). */
+#loader.fx {
+  display: block;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, #2a3350 calc(var(--lfx-dusk, 0) * 100%), #9ec3dc) 0%,
+      color-mix(in srgb, #5b4a5e calc(var(--lfx-dusk, 0) * 100%), #e8dcc6) 72%,
+      color-mix(in srgb, #3b3140 calc(var(--lfx-dusk, 0) * 100%), #cfc2a8) 100%);
+}
+#lfxStage { position: absolute; inset: 0; width: 100%; height: 100%; }
+#loader.fx h1, #loader.fx #status {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  text-align: center; white-space: nowrap;
+  color: color-mix(in srgb, #f6efe4 calc(var(--lfx-dusk, 0) * 100%), #2b2c3a);
+  opacity: calc(1 - var(--lfx-cam, 0) * 1.6);
+  transition: color .6s ease;
+}
+#loader.fx h1 { top: 7vh; font-size: 15px; }
+#loader.fx #status { bottom: 6vh; font-size: 12px; opacity: calc(.6 - var(--lfx-cam, 0)); }
+#loader.fx #track { display: none; }          /* the build is the progress bar now */

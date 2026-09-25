@@ -1,0 +1,281 @@
+/* =====================================================================
+   Navbar — map / stars / contact.
+
+   The glass here is real refraction: src/liquid-glass.js builds a
+   displacement map per element and hangs it off backdrop-filter, so it
+   sets `backdrop-filter` inline and this stylesheet must not. What is
+   below is the dressing that makes it read as a material — the tint, the
+   1px rim, the specular top edge and the drop shadow. Tints come from
+   CONFIG.navbar and are written onto :root as "r,g,b" by navbar.js.
+   ===================================================================== */
+#navbar {
+  /* Session 54: above the porch intro (.intro is z-index 85, full-screen),
+     so the navbar works from the very first frame instead of sitting
+     un-clickable under the intro's overlay. */
+  position: fixed; top: 24px; right: 24px; z-index: 86;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: opacity .3s ease, transform .3s ease, visibility .3s;
+}
+#navbar.away { opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(12px); }
+
+.navbtn {
+  width: 52px; height: 52px; padding: 0; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font: inherit; color: var(--ink); cursor: pointer;
+  background: rgba(var(--tint), .18);
+  border: 1px solid rgba(246,239,228,.10);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.38),
+    inset 0 1px 1px rgba(255,255,255,.34),
+    inset 0 -8px 20px rgba(255,255,255,.05),
+    inset 0 0 0 1px rgba(255,255,255,.11);
+  transition: background .15s ease, color .15s ease,
+              transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.navbtn:hover { background: rgba(var(--tint), .34); transform: scale(1.08) rotate(-3deg); }
+.navbtn:active { transform: scale(1.02) rotate(-1deg); }
+.navbtn svg { display: block; }
+
+#navMap     { --tint: var(--nav-map); }
+#navStar    { --tint: var(--nav-star); height: auto; min-height: 64px;
+              flex-direction: column; gap: 2px; padding: 8px 0; }
+#navContact { --tint: var(--nav-contact); }
+#musicToggle { --tint: var(--nav-map); position: relative; }
+#musicToggle .musicOn { display: none; }
+#musicToggle.on .musicOn { display: block; }
+#musicToggle.on .musicOff { display: none; }
+#musicToggle.on { border-color: rgba(255,226,138,.45); }
+/* Session 26: voxel icons in the dress palette (src/assets/icons/). */
+.navIcon { display: block; width: 32px; height: 32px; pointer-events: none;
+           filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); -webkit-user-drag: none; }
+#musicToggle .musicOff { position: relative; }
+#musicToggle .musicOff .navIcon { opacity: .5; filter: saturate(.3) drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+#musicToggle .musicOff::after { content: ''; position: absolute; left: 2px; right: 2px; top: 50%; height: 3px;
+           margin-top: -1.5px; border-radius: 2px; background: #FFF3DC; transform: rotate(-40deg);
+           box-shadow: 0 0 0 1.5px #1C1F52; }
+#musicToggle.on .musicOn .navIcon { animation: noteSway 1.6s ease-in-out infinite; }
+@keyframes noteSway { 0%,100% { transform: translateY(1px); } 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { #musicToggle.on .musicOn .navIcon { animation: none; } }
+#starCount  { font-size: 11px; font-weight: 600; letter-spacing: .02em;
+              color: #ffe6a3; text-shadow: 0 0 8px rgba(255,196,64,.45); }
+
+/* the ✨ itself ------------------------------------------------------
+   Two layers in the same 28px box, drawn from the SAME three-sparkle
+   path so they line up exactly:
+
+     .starGem  a clip-path'd sheet of real liquid glass. Its
+               backdrop-filter is set inline by liquid-glass.js (see
+               navbar.js), so the house bends inside the star's own
+               silhouette rather than inside a rounded square.
+     .starArt  the dressing on top — yellow tint, white rim, specular
+               highlight, outer glow. This is what makes it read as a
+               warm glass gem, and it is all that survives on Safari
+               and Firefox, where the refraction no-ops to a frost.
+
+   WHY IT IS NOT INSIDE THE BUTTON. An element with backdrop-filter is
+   a backdrop root: a descendant's own backdrop-filter then has only
+   its ancestor's box to sample, so nesting the gem inside #navStar
+   made its refraction completely inert (verified — cranking the
+   displacement to -200 changed not one pixel). So .starWrap is a
+   *sibling* of the buttons, painted over #navStar and pinned to it by
+   Navbar.placeStar(). It is pointer-events: none, so the button under
+   it still takes the clicks, and the hover rules below mirror the
+   button's own so the two move together.
+
+   The path is repeated in three places (clip-path, fill clip, rim) at
+   two scales — 28px units in the CSS, 24px units in the SVG viewBox.
+   If it changes, change all three. Each sparkle is a four-point star
+   whose quadratic controls sit at its own centre; that is what pinches
+   the sides concave. */
+#navStar .starSlot { display: block; width: 28px; height: 28px; }
+
+/* Session 25: a CSS default position equal to where Navbar.placeStar()
+   puts it (map button 52 + gap 10 + #navStar's 8px padding; centred in
+   52px). navbar.js only runs once the house has loaded, and until then the
+   ✨ sat at its static position — up by the map button — and jumped down
+   after loading. Now it starts where it ends. */
+.starWrap {
+  position: absolute; top: 70px; left: 12px;
+  width: 28px; height: 28px; pointer-events: none;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+
+.starGem {
+  position: absolute; inset: 0;
+  clip-path: path("M10.5 6.65Q10.5 15.75 19.6 15.75Q10.5 15.75 10.5 24.85Q10.5 15.75 1.4 15.75Q10.5 15.75 10.5 6.65Z M21.23 2.1Q21.23 7.23 26.37 7.23Q21.23 7.23 21.23 12.37Q21.23 7.23 16.1 7.23Q21.23 7.23 21.23 2.1Z M21.93 17.27Q21.93 20.77 25.43 20.77Q21.93 20.77 21.93 24.27Q21.93 20.77 18.43 20.77Q21.93 20.77 21.93 17.27Z");
+  background: linear-gradient(150deg, rgba(255,231,153,.30), rgba(255,170,26,.13));
+}
+
+.starArt {
+  position: absolute; inset: 0; overflow: visible;
+  filter: drop-shadow(0 0 7px rgba(255,193,64,.5)) drop-shadow(0 1px 1px rgba(0,0,0,.35));
+  transition: filter .18s ease;
+}
+
+#navStar:hover ~ .starWrap { transform: scale(1.08) rotate(-3deg); }
+#navStar:hover ~ .starWrap .starArt {
+  filter: drop-shadow(0 0 11px rgba(255,207,86,.8)) drop-shadow(0 1px 1px rgba(0,0,0,.35));
+}
+#navStar:active ~ .starWrap { transform: scale(1.02) rotate(-1deg); }
+
+/* popovers ------------------------------------------------------------ */
+.pop {
+  position: fixed; top: 24px; right: 86px; width: 262px; padding: 16px;
+  border-radius: 16px; z-index: 87;   /* Session 54: was 50 — above the intro (85) */
+  background: linear-gradient(160deg, rgba(var(--nav-accent), .24), rgba(16,19,26,.52));
+  border: 1px solid rgba(var(--nav-accent), .40);
+  opacity: 0; visibility: hidden; transform: translateY(-6px);
+  transition: opacity .22s ease, transform .22s ease, visibility .22s;
+}
+.pop.show { opacity: 1; visibility: visible; transform: none; }
+.pop header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.pop h3 {
+  margin: 0; display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--nav-accent-hex); filter: brightness(1.35);
+}
+.pop .x {
+  width: 22px; height: 22px; border: none; border-radius: 7px; background: transparent;
+  color: rgba(246,239,228,.6); cursor: pointer; font-size: 15px; line-height: 1; padding: 0;
+}
+.pop .x:hover { background: rgba(246,239,228,.09); color: var(--ink); }
+
+#contactBody { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+#contactBody .row { opacity: .9; }
+#contactBody a { color: var(--ink); text-decoration: none; border-bottom: 1px solid rgba(246,239,228,.25); }
+#contactBody a:hover { border-bottom-color: var(--ink); }
+#contactBody .dot { opacity: .4; margin: 0 8px; }
+
+#starList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px;
+            max-height: 46vh; overflow-y: auto; }
+#starList li { display: flex; align-items: center; gap: 9px; font-size: 12.5px; opacity: .4; }
+#starList li.got { opacity: 1; }
+#starList li i { width: 15px; text-align: center; font-style: normal; font-size: 10px; opacity: .55; }
+#starList li .blank { flex: 1; height: 0; border-bottom: 1px dashed rgba(246,239,228,.45); }
+#starExtra { margin-top: 10px; font-size: 11px; letter-spacing: .04em; opacity: .55; }
+
+/* toast — parked under the room label so it can't fight the hint, the
+   stairs chooser or the stand-up button, which all live at the bottom. */
+#toast {
+  position: fixed; left: 50%; top: 72px; transform: translate(-50%, -8px);
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 999px; z-index: 88;   /* Session 54: was 60 */
+  font-weight: 500; font-size: 13px; color: var(--ink);
+  background: linear-gradient(168deg, rgba(16,19,26,.34), rgba(16,19,26,.50));
+  border: 1px solid rgba(var(--nav-accent), .45);
+  opacity: 0; transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* the house map ------------------------------------------------------- */
+/* The scrim behind the dialog. It must NOT have a backdrop-filter of its
+   own: an element with one is a backdrop root, so #mapDialog — its child —
+   would have only this box to sample and its refraction would be inert.
+   (Verified: cranking the dialog's displacement changed nothing while the
+   blur was here. Same wall the ✨ gem hit, see the note below.) A plain
+   dim does the separating job on its own. */
+#mapWrap {
+  position: fixed; inset: 0; z-index: 89; padding: 24px;   /* Session 54: was 70 — still under the story veil (90) */
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8,10,14,.62);
+  opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s;
+}
+#mapWrap.show { opacity: 1; visibility: visible; }
+
+#mapDialog {
+  width: min(560px, 100%); padding: 20px; border-radius: 20px;
+  background: linear-gradient(165deg, rgba(var(--nav-accent), .16), rgba(16,19,26,.46));
+  border: 1px solid rgba(var(--nav-accent), .32);
+  transform: translateY(10px) scale(.985);
+  transition: transform .28s cubic-bezier(.2,.9,.3,1);
+}
+#mapWrap.show #mapDialog { transform: none; }
+
+#mapHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+#mapHead h2 { margin: 0; font-size: 17px; font-weight: 500; letter-spacing: .01em; }
+#mapClose {
+  width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px;
+  background: rgba(246,239,228,.07); color: var(--ink); cursor: pointer; font-size: 15px; line-height: 1;
+}
+#mapClose:hover { background: rgba(246,239,228,.15); }
+
+/* Session 55: one cut-away picture of the house — see navbar.js buildPlan(). */
+#mapPanel {
+  position: relative; height: 340px; border-radius: 16px; overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(var(--nav-accent), .07) 0%, rgba(246,239,228,.02) 78%, rgba(120,170,110,.07) 78%);
+  border: 1px solid rgba(246,239,228,.12);
+}
+.mapPlan { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mapRoof {
+  fill: rgba(246,239,228,.045); stroke: rgba(246,239,228,.28); stroke-width: 1.2;
+  stroke-linejoin: round; vector-effect: non-scaling-stroke;
+}
+.mapGround { stroke: rgba(246,239,228,.3); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.mapFloorName {
+  position: absolute; transform: translateY(-50%); pointer-events: none;
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: rgba(246,239,228,.38);
+}
+.mapFloorName::after {   /* a faint rule running over to the house, so the name reads as that row */
+  content: ''; display: inline-block; vertical-align: middle; width: 70px; margin-left: 8px;
+  border-top: 1px dashed rgba(246,239,228,.16);
+}
+.mapRoom {
+  position: absolute; z-index: 1; padding: 4px; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  text-align: center; font: inherit; font-size: 11px; line-height: 1.2; color: rgba(246,239,228,.82);
+  background: rgba(246,239,228,.06); border: 1px solid rgba(246,239,228,.2); cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.mapRoom.outdoor { background: rgba(120,170,110,.08); border-style: dashed; border-color: rgba(160,200,150,.3); }
+.mapRoom.porch   { background: rgba(246,239,228,.04); border-style: dashed; }
+.mapRoom:hover { background: rgba(246,239,228,.13); color: var(--ink); }
+.mapRoom.on { background: rgba(var(--nav-accent), .18); color: var(--ink); }
+.mapRoom .marks { display: flex; gap: 3px; align-items: center; }
+.mapRoom .marks[hidden] { display: none; }
+
+/* the markers — small on purpose; they're a hint, not a checklist */
+.mkStar, .mkCoin { display: inline-flex; width: 11px; height: 11px; }
+.mkStar svg, .mkCoin svg { width: 100%; height: 100%; overflow: visible; }
+.mkStar path { fill: #ffd166; filter: drop-shadow(0 0 3px rgba(255,209,102,.65)); }
+.mkStar.got path { fill: none; stroke: rgba(255,209,102,.6); stroke-width: 1; filter: none; }
+.mkCoin circle { fill: #e2a93b; stroke: #fff0c2; stroke-width: .9; }
+.mkCoin text { font: 700 7.4px/1 system-ui, sans-serif; fill: #5a3a08; }
+.mkCoin.got { opacity: .35; }
+#mapRing {
+  position: absolute; z-index: 2; display: none; border-radius: 7px; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--nav-accent-hex), 0 0 22px rgba(var(--nav-accent), .5);
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+}
+
+#mapFootL { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+#mapKey { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(246,239,228,.5); }
+#mapKey .mkCoin { margin-left: 8px; }
+
+#mapFoot { display: flex; align-items: center; justify-content: space-between;
+           gap: 12px; min-height: 36px; margin-top: 14px; }
+#mapHint { font-size: 13px; color: rgba(246,239,228,.75); }
+#mapGo {
+  padding: 8px 18px; border-radius: 11px; font: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer; background: transparent; white-space: nowrap; flex: 0 0 auto;
+  border: 1px solid var(--nav-accent-hex); color: var(--nav-accent-hex);
+  transition: background .15s ease, color .15s ease;
+}
+#mapGo:hover:not(:disabled) { background: rgba(var(--nav-accent), .2); color: var(--ink); }
+#mapGo:disabled { opacity: .4; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  #navbar { top: 14px; right: 14px; gap: 8px; }
+  .navbtn { width: 46px; height: 46px; border-radius: 14px; }
+  #navStar { min-height: 58px; }
+  .starWrap { top: 62px; left: 9px; }
+  .pop { top: auto; bottom: 14px; right: 14px; left: 14px; width: auto; }
+  #mapPanel { height: 280px; }
+  .mapRoom { font-size: 9.5px; gap: 3px; }
+  .mapFloorName::after { width: 24px; }
+  #mapFoot { flex-direction: column; align-items: stretch; gap: 10px; }
+  #mapHint { text-align: center; }
+  #mapKey { justify-content: center; }
+  #mapGo { width: 100%; }
+}

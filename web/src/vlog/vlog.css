@@ -1,0 +1,150 @@
+/* vlog.css — the studio table star's camera vlog popup (Session 57).
+   See vlog.js's header. Same veil/× language as letter.css so the two
+   popups read as one family. */
+
+#vlgVeil {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 64px 16px 84px;
+  background: radial-gradient(120% 90% at 50% 46%, rgba(8,10,16,.52), rgba(4,5,9,.86));
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .38s ease, visibility .38s;
+}
+#vlgVeil.show { opacity: 1; visibility: visible; pointer-events: auto; }
+#vlgVeil * { box-sizing: border-box; }
+
+.vlg-stage {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  transform: translateY(12px) scale(.96); opacity: 0;
+  transition: opacity .42s ease, transform .42s cubic-bezier(.22,.61,.28,1);
+}
+#vlgVeil.show .vlg-stage { opacity: 1; transform: none; }
+
+/* 16:9 to match both the re-encoded clip (1280x720) and the viewfinder
+   layer (1560x878). Width is capped three ways: a comfortable desktop
+   max, the screen width, and whatever height is left once the caption
+   and the Esc chip have their room. */
+.vlg-frame {
+  position: relative;
+  width: min(1040px, 92vw, calc((100vh - 240px) * 16 / 9));
+  flex: none;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px; overflow: hidden;
+  background: #0b0d12;
+  box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08);
+  cursor: pointer;
+}
+.vlg-video, .vlg-layer {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  display: block;
+}
+.vlg-video { object-fit: cover; }
+.vlg-layer {
+  object-fit: fill; pointer-events: none; user-select: none;
+  /* Session 58: the viewfinder layer sits 10% in from the frame's edges. */
+  transform: scale(.9); transform-origin: 50% 50%;
+}
+
+/* Session 58 — play/pause, bottom-left, tucked inside the layer's own
+   corner bracket (the layer is scaled to 90%, so its edge is 5% in). */
+.vlg-play {
+  position: absolute; z-index: 2;
+  left: calc(5% + 14px); bottom: calc(5% + 14px);
+  width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,12,18,.45); border: 1px solid rgba(255,255,255,.35);
+  color: #fff; cursor: pointer;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: background .15s ease, transform .1s ease;
+}
+.vlg-play:hover { background: rgba(10,12,18,.7); }
+.vlg-play:active { transform: scale(.93); }
+.vlg-play:focus { outline: none; }
+.vlg-play:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+.vlg-play svg { width: 18px; height: 18px; fill: currentColor; }
+.vlg-ico-play { display: none; margin-left: 2px; }
+#vlgVeil.paused .vlg-ico-play { display: block; }
+#vlgVeil.paused .vlg-ico-pause { display: none; }
+
+/* Session 58 — the caption's space is reserved up front when the lines
+   will type (first find), a fixed-height slot the caption grows DOWN
+   inside, so the video above never moves as a second line starts. The
+   frame's max height gives up the same space so everything still fits. */
+.vlg-caption-slot { display: none; }
+#vlgVeil.has-caption .vlg-caption-slot {
+  display: flex; justify-content: center; align-items: flex-start;
+  flex: none; width: min(720px, 92vw);
+  height: calc(16px * 1.35 * 5 + 26px);
+}
+#vlgVeil.has-caption .vlg-frame { width: min(1040px, 92vw, calc((100vh - 330px) * 16 / 9)); }
+
+/* The star's lines, typed under the video — same voice as #storyHud. */
+.vlg-caption {
+  margin: 0; width: 100%;
+  padding: 12px 18px; border-radius: 14px;
+  background: linear-gradient(168deg, rgba(16,19,26,.42), rgba(16,19,26,.62));
+  border: 1px solid rgba(255,226,138,.24);
+  font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 16px; line-height: 1.35; color: #f6efe4;
+  white-space: pre-line; text-align: center; cursor: pointer;
+}
+.vlg-caption[hidden] { display: none; }
+.vlg-caption.typing span::after {
+  content: ''; display: inline-block; width: 2px; height: 1em;
+  margin-left: 2px; vertical-align: -2px; background: currentColor;
+  opacity: .7; animation: vlgCaret .85s steps(1) infinite;
+}
+@keyframes vlgCaret { 50% { opacity: 0; } }
+
+.vlg-close {
+  position: fixed; top: 22px; right: 24px; z-index: 202;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(20,15,10,.55); border: 1px solid rgba(255,226,138,.28);
+  color: #f6efe4; font-size: 18px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s ease, transform .1s ease;
+}
+.vlg-close:hover { background: rgba(20,15,10,.8); }
+.vlg-close:active { transform: scale(.94); }
+
+/* "Esc to close" — always on screen while the vlog is up, and clickable
+   itself, so it's also the close control on a phone. */
+.vlg-esc {
+  position: fixed; left: 50%; bottom: 26px; z-index: 202;
+  transform: translateX(-50%);
+  padding: 7px 14px; border-radius: 999px;
+  background: rgba(16,19,26,.55); border: 1px solid rgba(255,226,138,.22);
+  color: rgba(246,239,228,.78); cursor: pointer;
+  font-family: var(--font-major, ui-monospace, monospace);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+}
+.vlg-esc:hover { color: #f6efe4; background: rgba(16,19,26,.8); }
+.vlg-esc kbd {
+  font: inherit; padding: 1px 6px; margin-right: 4px; border-radius: 5px;
+  border: 1px solid rgba(246,239,228,.45); background: rgba(255,255,255,.06);
+}
+.vlg-esc-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .vlg-esc-key { display: none; }
+  .vlg-esc-touch { display: inline; }
+}
+
+/* While the vlog is up its caption carries the star's lines — the
+   top-left HUD would otherwise sit on the video's REC corner. */
+body.vlog-open #storyHud { opacity: 0 !important; visibility: hidden !important; }
+
+.vlg-close:focus, .vlg-esc:focus { outline: none; }
+.vlg-close:focus-visible, .vlg-esc:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+
+@media (max-width: 520px) {
+  #vlgVeil { padding: 56px 10px 72px; }
+  .vlg-close { top: 14px; right: 14px; width: 34px; height: 34px; }
+  .vlg-caption { font-size: 14px; }
+  #vlgVeil.has-caption .vlg-caption-slot { height: calc(14px * 1.35 * 7 + 26px); }
+  .vlg-play { width: 32px; height: 32px; left: calc(5% + 8px); bottom: calc(5% + 8px); }
+  .vlg-play svg { width: 14px; height: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vlg-stage, #vlgVeil { transition: none !important; }
+}

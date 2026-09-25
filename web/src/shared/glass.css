@@ -1,0 +1,51 @@
+/* =====================================================================
+   GLASS DRESSING — every popup in the HUD.
+
+   liquid-glass.js owns the optics: it sets `backdrop-filter` inline (see
+   glassify.js), so nothing here may set that property. What is below is
+   the dressing that makes the optics read as a material — the drop
+   shadow that lifts the panel off the house, the specular top edge, the
+   1px inner rim, and a text-shadow so cream type stays legible against a
+   light wall.
+
+   WHY THE TINTS ABOVE ARE THIN. They used to be .55–.93 opaque, which is
+   why every panel read as a dark slab with no glass in it: refraction you
+   cannot see through is just an expensive blur. Legibility now comes from
+   the interior blur in glassify.js and the bottom-weighted gradients
+   above, not from opacity. If text ever smears, raise `blur` in
+   glassify.js — do not reach back for an opaque background, which kills
+   the material.
+
+   NESTING. A child of one of these cannot have real glass of its own: an
+   element with backdrop-filter is a backdrop root, so a descendant has
+   only its ancestor's box to sample. (Verified twice now — the ✨ gem,
+   and again here: a button inside #story with its displacement cranked
+   from -6 to -260 moved exactly zero pixels.) So the chips that sit ON
+   glass — the story buttons, the stairs destinations, the map's own
+   controls — are dressed in CSS to match, and are NOT passed to
+   liquidGlass().
+   ===================================================================== */
+#hint, #prompt, #story, #standup, #choose, #doorTag,
+#toast, .pop, #mapDialog {
+  box-shadow:
+    0 22px 50px rgba(0,0,0,.40),
+    inset 0 1px 1px rgba(255,255,255,.34),
+    inset 0 -10px 22px rgba(255,255,255,.05),
+    inset 0 0 0 1px rgba(255,255,255,.11);
+  text-shadow: 0 1px 10px rgba(0,0,0,.5);
+}
+
+/* chips that sit on top of a glass panel — CSS-only, per the note above */
+#story button, #mapClose, #mapTabs {
+  border: none;
+  background: linear-gradient(170deg, rgba(255,255,255,.20), rgba(255,255,255,.08));
+  /* A tight shadow only. A wide one pools on the panel behind and reads as
+     a smudge on the glass rather than as a chip lifted off it. */
+  box-shadow:
+    0 1px 3px rgba(0,0,0,.16),
+    inset 0 1px 1px rgba(255,255,255,.40),
+    inset 0 0 0 1px rgba(255,255,255,.16);
+}
+#story button:hover, #mapClose:hover {
+  background: linear-gradient(170deg, rgba(255,255,255,.30), rgba(255,255,255,.14));
+}

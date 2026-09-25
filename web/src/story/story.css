@@ -1,0 +1,111 @@
+/* the story popup ------------------------------------------------------
+   Session 17: this is a MODAL now, centred on screen. #storyVeil covers the
+   whole window underneath it, which is what actually stops the visitor
+   walking on: it swallows every pointer event before the canvas or any of
+   the HUD can see one. Its z-index has to clear the WHOLE stack, not just
+   the canvas — the navbar is 40, its popovers 50, the toast 60 and the map
+   dialog 70, so at 20 the navbar was still clickable straight through the
+   veil. main.js also refuses input while story.blocking, so a stray key
+   can't get through either.
+   Session 29: every star/easter-egg script moved off this panel onto
+   #storyHud (below `#storyChoices`) — a non-blocking top-left typewriter,
+   not a modal. This panel and its veil are kept only for the intro, the
+   house rules, and the ending: the handful of moments that are genuinely
+   a "stop and choose" screen rather than ambient conversation. */
+#storyVeil {
+  position: fixed; inset: 0; z-index: 90;   /* Session 54: was 80 — the navbar now sits at 86-89 (over the porch intro), and a modal still has to clear it */
+  background: radial-gradient(120% 90% at 50% 45%, rgba(10,12,18,.26), rgba(8,10,14,.66));
+  opacity: 0; visibility: hidden;
+  transition: opacity .32s ease, visibility .32s;
+}
+#storyVeil.show { opacity: 1; visibility: visible; }
+
+#story {
+  position: fixed; left: 50%; top: 50%; z-index: 91;   /* Session 54: was 81 */
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(78vh, 660px); overflow-y: auto; overscroll-behavior: contain;
+  transform: translate(-50%, calc(-50% + 14px)); padding: 26px 28px 20px;
+  border-radius: 20px;
+  background: linear-gradient(168deg, rgba(16,19,26,.36), rgba(16,19,26,.52));
+  border: 1px solid rgba(255,226,138,.30); opacity: 0; visibility: hidden;
+  transition: opacity .3s ease, transform .3s ease, visibility .3s; text-align: center;
+}
+#story.show { opacity: 1; visibility: visible; transform: translate(-50%, -50%); }
+#storyKicker { display: block; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; opacity: .66; }
+#storySaid {
+  margin-top: 16px; font-size: 10px; letter-spacing: .26em; text-transform: uppercase;
+  color: #ffc98a; opacity: .82;
+}
+#storyText { margin: 12px 0 0; font-size: 17px; line-height: 1.5; white-space: pre-line; }
+/* a spoken line reads as speech: in quotes, under the name above it (no
+   italic — the site doesn't use italics anywhere) */
+#storySaid:not([hidden]) + #storyText::before { content: "\201C"; }
+#storySaid:not([hidden]) + #storyText::after  { content: "\201D"; }
+/* the stage direction / not-yet-built interaction for this beat */
+#storyNote {
+  margin: 16px auto 0; max-width: 46ch; padding: 9px 13px; border-radius: 11px;
+  font-size: 11.5px; line-height: 1.5; opacity: .55;
+  border: 1px dashed rgba(246,239,228,.24); text-align: left;
+}
+/* Session 29 (19 Sep 2026) — Apoorva's rewrite: the discovery text is no
+   longer this modal card. #story/#storyVeil above stay wired for the
+   intro, house rules and the ending — the few places a deliberate,
+   blocking choice screen still makes sense. Every star and easter egg's
+   script now plays through #storyHud below instead: a small subtitle
+   box, top-left, typed out while the visitor keeps walking, looking
+   around and interacting with whatever the star just triggered. See
+   Story.startHud()/updateHud()/paintHud() in story.js — `this.hud` is
+   kept deliberately separate from `this.open`, so `blocking` (and every
+   `blocked()` gate in main.js) never sees it: nothing here freezes the
+   walker, the camera, or click-to-move. */
+#storyHud {
+  position: fixed; left: 22px; top: 26px; z-index: 35;
+  width: min(420px, calc(100vw - 44px));
+  padding: 14px 18px; border-radius: 14px;
+  background: linear-gradient(168deg, rgba(16,19,26,.30), rgba(16,19,26,.46));
+  border: 1px solid rgba(255,226,138,.24);
+  /* Session 30 (20 Sep 2026): Apoorva's read on the first pass — too small
+     (read as background noise), line-height way overdone, and the blank
+     line between a beat's two sentences (`\n\n` in config.js) too roomy.
+     Bigger type + the site's own display font (--font-major, Bitcount
+     Grid) so it reads as a deliberate HUD element, and a tighter
+     line-height — which also directly tightens that blank-line gap,
+     since it's the same property driving both. */
+  font-family: var(--font-major);
+  font-size: 19px; line-height: 1.26; white-space: pre-line;
+  opacity: 0; visibility: hidden; pointer-events: none; cursor: pointer;
+  transition: opacity .3s ease, visibility .3s;
+}
+/* pointer-events only turns on once it's actually showing, and only over
+   this small box — small enough that a click here to skip/advance never
+   steals a click-to-move tap anywhere else on the canvas. */
+#storyHud.show { opacity: .97; visibility: visible; pointer-events: auto; }
+/* Session 63: the map star's letter (#ltrVeil, z 200) was covering the
+   narration. While the letter is up the HUD lifts above it (and above the
+   letter's own close/hint at 202), with a denser backing so the light text
+   still reads where it overlaps the beige paper. */
+body:has(#ltrVeil.show) #storyHud {
+  z-index: 203;
+  background: linear-gradient(168deg, rgba(16,19,26,.78), rgba(16,19,26,.88));
+}
+/* a soft blinking caret right after the last typed character, shown only
+   while a line is still being typed — the one visual cue this is a
+   typewriter and not just text fading in */
+#storyHud.typing #storyHudText::after {
+  content: ''; display: inline-block; width: 2px; height: 1em;
+  margin-left: 2px; vertical-align: -2px; background: currentColor;
+  opacity: .7; animation: storyCaret .85s steps(1) infinite;
+}
+@keyframes storyCaret { 50% { opacity: 0; } }
+
+#storyChoices { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+.storyChoice { display: block; width: 100%; text-align: left; padding: 13px 16px !important; border-radius: 14px !important; }
+/* both lines stay on the major font (var(--font-major), same as the
+   rest of this slide) — bold for the title, normal weight for the
+   line under it */
+.storyChoice b { display: block; font-family: var(--font-major); font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+.storyChoice i { display: block; font-family: var(--font-major); margin-top: 4px; font-size: 12.5px; font-style: normal; font-weight: 400; opacity: .62; }
+#storyFoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+#storyStep { font-size: 11px; letter-spacing: .14em; opacity: .40; }
+#story button { color: var(--ink); border-radius: 999px; padding: 8px 16px; cursor: pointer; font: inherit; font-size: 12.5px; }
+#storyClose { margin-left: 8px; opacity: .7; }

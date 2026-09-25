@@ -1,0 +1,279 @@
+/* book.css — the garden star's open book (Session 63). See book.js.
+   ------------------------------------------------------------------------
+   Same band as the letter and the vlog (veil z 200, × and Esc chip at 202,
+   and those two controls reuse letter.css's .ltr-close / .ltr-esc). The HUD
+   isn't lifted over this one: the book only opens after its lines have
+   finished typing.
+
+   Colours are sampled off the voxel Book in MeraGHAR.blend: the dusty pink
+   cover #dd9eb0, the pale pink page edges #ffe2ea, the mint ribbon #badfae.
+
+   Geometry: the book is two pages wide (--pg each). The right page sits
+   still. The cover sits on top of it and has two faces: the pink front,
+   and a back face that is the LEFT page. Opening the book turns the cover
+   180° about its left edge (the spine, in the middle). While it's closed
+   the whole book shifts left by half a page, so the closed cover is what
+   sits centred on screen. */
+/* Session 66: the book is typed, not handwritten — Special Elite (a worn typewriter face), in keeping with the intro's typewriter sounds. It has one weight, so nothing here asks for bold. */
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+
+#bkVeil {
+  /* one page's width — capped by width AND by height (page is 1.36 tall),
+     leaving room for the × at the top and the Esc chip at the bottom */
+  --pg: min(340px, 44vw, calc((100vh - 150px) / 1.36));
+  --pg-h: calc(var(--pg) * 1.36);
+  --cover: #dd9eb0;
+  --cover-dk: #c4839a;
+  --paper: #fff8f3;
+  --edge: #ffe2ea;
+  --ribbon: #badfae;
+  --ink: #4a3440;
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(120% 90% at 50% 46%, rgba(20,24,14,.52), rgba(6,9,5,.84));
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .38s ease, visibility .38s;
+}
+#bkVeil.show { opacity: 1; visibility: visible; pointer-events: auto; }
+/* the seat's own "Get up" button sits right behind the Esc chip — hide it while the book is open */
+body:has(#bkVeil.show) #standup { opacity: 0; pointer-events: none; }
+#bkVeil * { box-sizing: border-box; }
+
+.bk-stage {
+  perspective: 2200px;
+  transform: translateY(18px) scale(.9); opacity: 0;
+  transition: opacity .45s ease, transform .45s cubic-bezier(.2,.8,.2,1);
+}
+#bkVeil.show .bk-stage { opacity: 1; transform: none; }
+
+.bk-book {
+  position: relative; width: calc(var(--pg) * 2); height: var(--pg-h);
+  transform-style: preserve-3d;
+  transform: translateX(calc(var(--pg) * -0.5));
+  transition: transform 1.1s cubic-bezier(.45,.05,.25,1);
+}
+#bkVeil.opened .bk-book { transform: translateX(0); }
+
+/* ---- pages ------------------------------------------------------------
+   Session 65: the pages are ruled notebook paper and the poem is written on
+   the rules. --lh is one ruled line; --r0 is where the first rule's row
+   starts; --rb is the strip kept clear at the bottom for the page number and
+   the buttons. The lines' own box (.bk-pgc) sits exactly on those rows, so
+   book.js can count rows to know when a page is full. */
+#bkVeil { --lh: 32px; --r0: 56px; --rb: 50px; --nudge: 3px; }
+.bk-page {
+  position: absolute; top: 0; width: var(--pg); height: 100%;
+  --rules: repeating-linear-gradient(to bottom, transparent 0 calc(var(--lh) - 1px), rgba(196,131,154,.2) calc(var(--lh) - 1px) var(--lh));
+  background:
+    var(--rules) 0 var(--r0) / 100% calc(100% - var(--r0) - var(--rb)) no-repeat,
+    linear-gradient(to right, rgba(120,70,90,.10), transparent 14%),
+    var(--paper);
+  color: var(--ink);
+}
+.bk-right {
+  left: var(--pg);
+  border-radius: 2px 10px 10px 2px;
+  /* the page block's edge: a few pale-pink leaves stepping out, then the shadow */
+  box-shadow:
+    2px 2px 0 var(--edge), 4px 4px 0 #f6d3dd, 6px 6px 0 var(--edge),
+    0 30px 60px rgba(0,0,0,.45);
+}
+.bk-left {
+  border-radius: 10px 2px 2px 10px;
+  background:
+    var(--rules) 0 var(--r0) / 100% calc(100% - var(--r0) - var(--rb)) no-repeat,
+    linear-gradient(to left, rgba(120,70,90,.12), transparent 14%),
+    var(--paper);
+}
+
+/* the written area: exactly the ruled rows */
+.bk-pgc {
+  position: absolute; top: var(--r0); bottom: var(--rb);
+  left: 40px; right: 30px;
+  overflow: hidden;
+  font-family: 'Special Elite', 'Courier New', monospace; font-weight: 400;
+  font-size: calc(var(--pg) * .043); line-height: var(--lh);
+}
+.bk-left .bk-pgc { left: 32px; right: 38px; }
+
+/* page 1 opens with the title: two rows for the title, one for the byline, one blank */
+.bk-head { text-align: center; padding-bottom: var(--lh); }
+.bk-title {
+  font-family: 'Special Elite', 'Courier New', monospace; font-weight: 400;
+  font-size: calc(var(--pg) * .07); line-height: calc(var(--lh) * 2); color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  position: relative; top: var(--nudge);
+}
+.bk-by {
+  font-family: 'Special Elite', 'Courier New', monospace; font-weight: 400;
+  font-size: calc(var(--pg) * .04); line-height: var(--lh); color: rgba(74,52,64,.7);
+  position: relative; top: var(--nudge);
+}
+.bk-title.placeholder { color: rgba(74,52,64,.38); }
+/* the small bracketed note under the byline (Session 67) */
+.bk-note {
+  margin: calc(var(--lh) * .25) auto 0; max-width: 92%;
+  font-family: 'Special Elite', 'Courier New', monospace; font-weight: 400;
+  font-size: calc(var(--pg) * .03); line-height: 1.45; color: rgba(74,52,64,.55);
+  text-wrap: balance;
+}
+
+/* ---- lyrics (Sessions 64–65) ------------------------------------------
+   The poem is on the page, but not all of it shows. While she reads: the
+   line she's on in full ink, the next one faint, the one just read fading,
+   older ones a ghost, and later ones hidden. When the reading ends
+   (.lyrics-done), every line comes back. */
+.bk-ln {
+  position: relative; top: var(--nudge);
+  padding-left: 1em; text-indent: -1em;   /* a wrapped line's continuation hangs in */
+  opacity: 0;
+  color: var(--ink);
+  cursor: pointer;
+  transition: opacity .55s ease, color .55s ease, text-shadow .55s ease;
+}
+.bk-ln.gap { margin-top: var(--lh); }
+.bk-ln.gap.top { margin-top: 0; }
+#bkVeil.bk-placeholder .bk-ln { color: rgba(74,52,64,.55); font-style: italic; }
+
+/* before the first line starts, only line one shows, faint */
+#bkVeil:not(.lyrics-on):not(.lyrics-done) .bk-ln[data-i="0"] { opacity: .3; }
+
+#bkVeil.lyrics-on .bk-ln.read { opacity: .1; }
+#bkVeil.lyrics-on .bk-ln.past { opacity: .22; }
+#bkVeil.lyrics-on .bk-ln.next { opacity: .32; }
+#bkVeil.lyrics-on .bk-ln.now  {
+  opacity: 1;
+  text-shadow: 0 0 14px rgba(221,158,176,.55);
+}
+#bkVeil.lyrics-done .bk-ln { opacity: .92; }
+.bk-ln:hover { color: #7a4a60; }
+
+/* ---- turning a page ----------------------------------------------------
+   A leaf the size of one page, hinged on the spine like the cover: its
+   front is a right page, its back a left page. book.js fills both and
+   swings it 180°. */
+.bk-leaf {
+  position: absolute; top: 0; left: var(--pg); width: var(--pg); height: 100%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  z-index: 3; pointer-events: none;
+}
+.bk-leaf.turning { transition: transform .9s cubic-bezier(.45,.05,.25,1); }
+.bk-leaf .bk-page { left: 0; top: 0; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.bk-leaf .bk-ln { transition: none; }
+
+/* ---- buttons in the bottom strip, once the reading is over ------------ */
+.bk-btn {
+  position: absolute; bottom: 10px;
+  font-family: 'Special Elite', 'Courier New', monospace; font-size: 13px; color: rgba(74,52,64,.7);
+  background: none; border: 0; padding: 4px 8px; cursor: pointer;
+  opacity: 0; pointer-events: none; transition: opacity .5s ease .3s;
+  z-index: 1;
+}
+.bk-btn:hover { color: var(--ink); text-decoration: underline; }
+.bk-again { left: 24px; }
+.bk-fwd { right: 20px; }
+.bk-back-btn { left: 20px; }
+#bkVeil.lyrics-done .bk-again,
+#bkVeil.lyrics-done.can-fwd .bk-fwd,
+#bkVeil.lyrics-done.can-back .bk-back-btn { opacity: 1; pointer-events: auto; }
+
+/* the ?booktime helper strip */
+.bk-timer {
+  position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
+  max-width: min(92vw, 720px); padding: 8px 14px; border-radius: 8px;
+  background: rgba(255,248,243,.94); color: #4a3440;
+  font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  display: none; user-select: all; z-index: 3;
+}
+.bk-timer.show { display: block; }
+
+.bk-folio {
+  position: absolute; bottom: 14px; left: 0; right: 0; text-align: center;
+  font-family: 'Special Elite', 'Courier New', monospace; font-size: 11px; color: rgba(74,52,64,.4);
+}
+
+/* the mint ribbon marker, tucked in at the top and hanging out the bottom */
+.bk-ribbon {
+  position: absolute; top: -6px; left: 30%; width: 14px; height: calc(100% + 34px);
+  background: linear-gradient(to right, #a7cf9a, var(--ribbon) 45%, #cbe8c0);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%);
+  opacity: .9; pointer-events: none; z-index: -1;
+}
+
+/* ---- the cover -------------------------------------------------------- */
+.bk-cover {
+  position: absolute; top: 0; left: var(--pg); width: var(--pg); height: 100%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  transition: transform 1.1s cubic-bezier(.45,.05,.25,1);
+  z-index: 2;
+}
+#bkVeil.opened .bk-cover { transform: rotateY(-180deg); }
+
+.bk-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.bk-front {
+  border-radius: 3px 12px 12px 3px;
+  background:
+    linear-gradient(to right, rgba(0,0,0,.14), rgba(0,0,0,0) 9%, rgba(255,255,255,.08) 10%, rgba(255,255,255,0) 14%),
+    radial-gradient(130% 90% at 30% 20%, #e7b1c0, var(--cover) 55%, var(--cover-dk));
+  box-shadow: inset 0 0 0 1px rgba(120,60,80,.18), 0 30px 60px rgba(0,0,0,.5);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+}
+.bk-plate {
+  padding: 10px 26px 12px; border-radius: 6px;
+  background: rgba(255,248,243,.82);
+  box-shadow: inset 0 0 0 1px rgba(160,90,115,.25), 0 2px 0 rgba(120,60,80,.18);
+  font-family: 'Special Elite', 'Courier New', monospace; font-weight: 400;
+  font-size: calc(var(--pg) * .075); color: var(--ink); letter-spacing: .02em;
+}
+/* a little voxel sprig, echoing the green tassel on the real book */
+.bk-sprig {
+  width: 44px; height: 30px;
+  background:
+    linear-gradient(var(--ribbon), var(--ribbon)) 20px 12px / 4px 18px no-repeat,
+    linear-gradient(var(--ribbon), var(--ribbon)) 8px 4px / 8px 8px no-repeat,
+    linear-gradient(var(--ribbon), var(--ribbon)) 28px 0 / 8px 8px no-repeat,
+    linear-gradient(#a7cf9a, #a7cf9a) 14px 8px / 8px 4px no-repeat,
+    linear-gradient(#a7cf9a, #a7cf9a) 22px 6px / 8px 4px no-repeat;
+  opacity: .9;
+}
+.bk-back { transform: rotateY(180deg); }
+
+@media (max-width: 560px) {
+  #bkVeil { --pg: min(300px, 46vw, calc((100vh - 150px) / 1.36)); --lh: 20px; --r0: 30px; --rb: 34px; --nudge: 2px; }
+  .bk-pgc { left: 16px; right: 12px; }
+  .bk-left .bk-pgc { left: 12px; right: 16px; }
+  .bk-btn { font-size: 10.5px; bottom: 6px; padding: 2px 4px; }
+  .bk-again { left: 8px; } .bk-fwd { right: 6px; } .bk-back-btn { left: 6px; }
+}
+
+/* Phones (book.js adds .single at ≤560px): one page at a time, full width.
+   The cover still swings open, then steps aside; the right page stays centred. */
+#bkVeil.single { --pg: min(88vw, 380px, calc((100vh - 150px) / 1.36)); --lh: 28px; --r0: 44px; --rb: 42px; --nudge: 2px; }
+#bkVeil.single .bk-pgc { left: 22px; right: 18px; font-size: calc(var(--pg) * .042); }
+#bkVeil.single .bk-btn { font-size: 12.5px; bottom: 8px; }
+#bkVeil.single.opened .bk-book { transform: translateX(calc(var(--pg) * -0.5)); }
+#bkVeil.single.opened .bk-cover {
+  opacity: 0; pointer-events: none;
+  transition: transform 1.1s cubic-bezier(.45,.05,.25,1), opacity .35s ease .75s;
+}
+#bkVeil.single .bk-ribbon { display: none; }
+/* one page, one bottom strip: back on the left; turn the page on the right,
+   or on the last page, hear it again */
+#bkVeil.single .bk-again { left: auto; right: 14px; }
+#bkVeil.single.lyrics-done.can-fwd .bk-again { opacity: 0; pointer-events: none; }
+#bkVeil.single .bk-fwd { right: 14px; }
+#bkVeil.single .bk-back-btn { left: 14px; }
+/* the leaf fades as it turns away, or in as it turns back */
+#bkVeil.single .bk-leaf.fwd.turning { opacity: 0; transition: transform .9s cubic-bezier(.45,.05,.25,1), opacity .45s ease .4s; }
+#bkVeil.single .bk-leaf.rev { opacity: 0; }
+#bkVeil.single .bk-leaf.rev.turning { opacity: 1; transition: transform .9s cubic-bezier(.45,.05,.25,1), opacity .4s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-stage, .bk-book, .bk-cover, .bk-leaf, .bk-ln { transition: none !important; }
+}

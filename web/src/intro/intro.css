@@ -1,0 +1,86 @@
+.intro{position:fixed;inset:0;z-index:85;font-family:'DotGothic16',ui-monospace,monospace;color:#FBE7C6;
+  -webkit-font-smoothing:none;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
+.intro.gone{pointer-events:none}
+.intro-scrim{position:absolute;inset:0;pointer-events:none;transition:opacity .6s ease;
+  background:linear-gradient(to left,rgba(20,18,56,.62) 0%,rgba(20,18,56,.42) 42%,rgba(20,18,56,0) 68%)}
+.intro-dim{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .5s ease;
+  background:radial-gradient(ellipse at 50% 50%,rgba(16,14,46,.28) 0%,rgba(16,14,46,.62) 75%)}
+.intro.choosing .intro-dim{opacity:1}
+.intro.choosing .intro-scrim{opacity:0}
+.intro.gone .intro-scrim,.intro.gone .intro-dim{opacity:0}
+/* the typed lines — dress palette: cream body, pink highlights, gold subtitle, navy shadow */
+.intro-text{position:absolute;left:46vw;right:2vw;top:50%;transform:translateY(-50%);z-index:1;
+  text-shadow:0 4px 0 #1C1F52,0 0 22px rgba(16,12,40,.55);transition:opacity .28s ease}
+.intro-text{pointer-events:none}   /* it spans the right half; never let it cover the Explore card */
+.intro-text.out{opacity:0}
+.intro-text p{margin:0;white-space:pre-wrap}
+.intro-text .hl{color:#FF6B9A}
+.intro-text .rest{color:transparent !important;text-shadow:none}
+.intro-text .caret{display:none;position:relative;width:0}
+.intro-text p.on .caret{display:inline-block}
+.intro-text .caret::after{content:'';position:absolute;left:.08em;bottom:-.02em;width:.5em;height:.9em;
+  background:#FBE7C6;box-shadow:0 4px 0 #1C1F52;animation:introBlink .9s steps(1) infinite}
+@keyframes introBlink{50%{opacity:0}}
+.intro-text .s-xl{font-size:clamp(36px,4.5vw,96px);line-height:1.06}
+.intro-text .s-lg{font-size:clamp(24px,3.3vw,64px);line-height:1.2}
+.intro-text .s-md{font-size:clamp(21px,2.4vw,42px);line-height:1.38}
+.intro-text .s-sm{font-size:clamp(16px,1.6vw,27px);line-height:1.45;color:#F3DDBF}
+.intro-text .s-sub{font-size:clamp(20px,2.3vw,40px);line-height:1.3;margin-top:.45em;color:#E7B872}
+.intro-text .s-xl + .s-lg{margin-top:.3em}
+.intro-text .gap{margin-top:.6em}
+/* word-by-word reveal (the house-rules bullets): each word pops in on its own,
+   rather than the letter-by-letter typewriter used everywhere else. */
+.intro-text .w{display:inline-block;opacity:0;transform:translateY(.22em);
+  transition:opacity .26s ease,transform .26s ease}
+.intro-text .w.in{opacity:1;transform:none}
+.intro-hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);font-size:15px;color:#F3DDBF;
+  letter-spacing:.04em;padding:8px 16px;white-space:nowrap;border-radius:999px;background:rgba(28,31,82,.55);
+  opacity:0;transition:opacity .4s ease;pointer-events:none}
+.intro-hint.show{opacity:1;animation:introNudge 1.8s ease-in-out infinite}
+@keyframes introNudge{50%{transform:translateX(-50%) translateY(-3px)}}
+/* the choice — two liquid-glass cards, centred, dressed like the kurta */
+.intro-choice{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-46%);width:min(780px,90vw);
+  display:grid;grid-template-columns:1fr 1fr;gap:clamp(14px,2.4vw,32px);opacity:0;
+  transition:opacity .45s ease,transform .45s ease;cursor:default}
+.intro-choice[hidden]{display:none}
+.intro-choice.show{opacity:1;transform:translate(-50%,-50%)}
+.intro-tile{position:relative;overflow:hidden;font:inherit;color:#FBE7C6;text-align:center;cursor:pointer;border:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  min-height:clamp(220px,34vh,330px);padding:32px 22px 46px;border-radius:26px;
+  background:linear-gradient(180deg,rgba(42,47,110,.30),rgba(22,24,70,.55));
+  box-shadow:0 24px 60px rgba(8,6,30,.5),inset 0 1px 1px rgba(255,255,255,.45),
+    inset 0 -8px 20px rgba(255,255,255,.05),inset 0 0 0 1.5px rgba(231,184,114,.55);
+  transition:transform .18s ease,box-shadow .18s ease}
+.intro-tile .t-icon img{display:block;width:clamp(76px,8vw,118px);height:auto;filter:drop-shadow(0 6px 4px rgba(10,8,34,.45));-webkit-user-drag:none}
+.intro-tile .t-title{font-size:clamp(23px,2.6vw,38px);line-height:1.1;text-shadow:0 3px 0 #1C1F52}
+.intro-tile .t-sub{font-size:clamp(14px,1.25vw,19px);color:#E7B872;text-shadow:0 2px 0 #1C1F52}
+.intro-tile .t-hem{position:absolute;left:0;right:0;bottom:0;height:16px;background:#C8305F;
+  border-top:2px solid #E7B872;box-shadow:inset 0 -3px 0 #E7B872}
+/* .sel = the one selection ring: follows the mouse (hover) and the keys (arrows / A-D / Tab) */
+.intro-tile:focus:not(.sel){outline:none}
+.intro-tile.sel{transform:translateY(-4px);outline:3px solid #E7B872;outline-offset:5px;
+  box-shadow:0 28px 64px rgba(8,6,30,.55),inset 0 1px 1px rgba(255,255,255,.5),
+  inset 0 0 0 2px rgba(255,107,154,.8),0 0 42px rgba(255,107,154,.28)}
+.intro-tile.sel .t-title{color:#FF6B9A}
+.intro-tile.sel .t-icon img{animation:introBob 1.4s ease-in-out infinite}
+@keyframes introBob{50%{transform:translateY(-6px)}}
+.intro-tile:active{transform:translateY(1px)}
+@media (max-width:760px),(max-aspect-ratio:4/5){
+  .intro-scrim{background:linear-gradient(to bottom,rgba(20,18,56,.72) 0%,rgba(20,18,56,.42) 42%,rgba(20,18,56,0) 66%)}
+  .intro-text{left:22px !important;right:22px !important;top:max(84px,9vh);transform:none;width:auto !important}
+  .intro-text .s-xl{font-size:clamp(30px,9vw,46px)}
+  .intro-text .s-lg{font-size:clamp(21px,6vw,30px)}
+  .intro-text .s-md{font-size:clamp(18px,5vw,24px)}
+  .intro-text .s-sub{font-size:clamp(17px,4.8vw,22px)}
+  .intro-choice{width:calc(100vw - 28px);gap:12px}
+  .intro-tile{min-height:190px;padding:22px 10px 36px;border-radius:20px;gap:8px}
+  .intro-tile .t-title{font-size:clamp(17px,5vw,22px)}
+  .intro-tile .t-sub{font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){
+  .intro-text,.intro-choice,.intro-scrim,.intro-dim{transition:none}.intro-hint.show{animation:none}
+  .intro-text .caret::after{animation:none}
+  .intro-tile.sel .t-icon img{animation:none}
+  .intro-text .w{transition:none}
+}
+canvas.over-greeter{cursor:pointer !important}

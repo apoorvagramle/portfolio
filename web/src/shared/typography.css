@@ -1,0 +1,20 @@
+/* typography ----------------------------------------------------------
+   Three fonts, one job each: Bitcount Grid Single for headings, labels
+   and every button — the "major" text that should read as UI chrome;
+   Coda (rounded) for body copy and everything else, set once on <body>
+   above and left to inherit everywhere; Space Mono kept only for a
+   deliberately minimal set of accent spots — counters, badges,
+   emphasized inline words — below. Deliberately last in this
+   stylesheet: several button rules above (#standup, #story button,
+   #doorTag, #floorOpt, #mapGo, .mapTab) reset their font with a
+   `font: inherit` shorthand, which zeroes the family too — being last
+   is what lets the family below win that tie instead of losing to
+   source order. */
+#loader h1, #room, #storyKicker, .storyChoice b, #chooseList .dest b,
+#choose h2, #mapHead h2, .pop h3,
+#standup, #story button, #doorTag, .mapTab, #mapGo {
+  font-family: var(--font-major);
+}
+#hint b, #storySaid, #starCount, #storyStep, #status code, #toastText {
+  font-family: var(--font-highlight);
+}
