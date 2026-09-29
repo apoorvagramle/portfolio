@@ -715,7 +715,16 @@ export class Story {
     const seatNow = this.seats?.active?.id ?? null;
     if (seatNow && w?.seatedStill) {
       this.seatHeld = (this.seatHeld ?? 0) + dt;
-      if (this.seatHeld > (CONFIG.storyMarkers?.seatDelay ?? 0.45)) {
+      // Session 80: a seat can now hold more than one star (the sofa has
+      // both the TV and the map). Without this guard, the frame right after
+      // one auto-reveals, this same block would find the *other* unfound
+      // star still bound to the seat and reveal it too — both firing back
+      // to back, reading as if they played at once. One auto-reveal per
+      // continuous sit; standing up and sitting back down (which clears
+      // seatHeld in the `else` below) is what re-arms it. A star you tap
+      // directly while already seated still opens instantly regardless —
+      // that goes through activate(), not this block.
+      if (this.seatHeld > (CONFIG.storyMarkers?.seatDelay ?? 0.45) && this.seatAutoFiredFor !== seatNow) {
         // The star you tapped your way here for goes first (the map, when
         // you were walked to the sofa for it); otherwise whatever star
         // belongs to this seat (the TV).
@@ -723,9 +732,9 @@ export class Story {
         const item = (want && !want.found && Story.seatOf(want.def) === seatNow)
           ? want
           : this.items.find((x) => !x.found && x.def.seat === seatNow);
-        if (item) { this.reveal(item.def.id); return; }
+        if (item) { this.seatAutoFiredFor = seatNow; this.reveal(item.def.id); return; }
       }
-    } else this.seatHeld = 0;
+    } else { this.seatHeld = 0; this.seatAutoFiredFor = null; }
 
     const a = this.approach;
     if (!a || !w) return;

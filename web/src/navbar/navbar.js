@@ -375,11 +375,17 @@ export class Navbar {
       : '';
   }
 
-  /** Called by main.js whenever something new is found. */
+  /** Called by main.js whenever something new is found. A secret doesn't
+   *  move the n/total count (it isn't one of the counted stars), so it gets
+   *  its own line instead of repeating the star toast with an unchanged
+   *  number — back-to-back finds (sitting down, then powering the desk on)
+   *  would otherwise look like the same notification firing twice. */
   onCollect(def) {
     this.paintStar();
     if (this.starOpen) this.paintStarList();
-    this.ui.toastText.textContent = `Another piece found · ${this.discoveries.count}/${this.discoveries.total}`;
+    this.ui.toastText.textContent = def.secret
+      ? 'Found something hidden'
+      : `Another piece found · ${this.discoveries.count}/${this.discoveries.total}`;
     this.ui.toast.classList.add('show');
     this.toastTimer = 2.4;
   }

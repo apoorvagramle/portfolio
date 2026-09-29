@@ -33,18 +33,13 @@ export const CONFIG = {
   },
 
   // -------------------------------------------------------------------------
-  //  PostHog event tracking (analytics/analytics.js) — Session 79. Off by
-  //  default: `enabled: false` means initAnalytics() never loads PostHog's
-  //  script and every track() call everywhere else is a silent no-op.
-  //
-  //  To turn it on: create a PostHog project (posthog.com), paste its
-  //  Project API key below, set `enabled: true`, and — if the project isn't
-  //  on PostHog's US cloud — change `apiHost` to match (EU cloud is
-  //  'https://eu.i.posthog.com'; self-hosted is your own instance's URL).
+  //  PostHog event tracking (analytics/analytics.js) — Session 79, turned on
+  //  Session 80 with Apoorva's own project (US cloud). EU cloud would be
+  //  'https://eu.i.posthog.com'; self-hosted is your own instance's URL.
   // -------------------------------------------------------------------------
   posthog: {
-    enabled: false,
-    apiKey: '',   // 'phc_...' — from Project Settings in PostHog
+    enabled: true,
+    apiKey: 'phc_BTxtu4nEwLx6p9SNYGGDVrXDZon3M7Akyjhc7eiBf5fR',
     apiHost: 'https://us.i.posthog.com',
   },
 
@@ -1039,7 +1034,6 @@ export const CONFIG = {
       { id: 'desk:sit',     label: 'The professional me' },
     ],
     secrets: [
-      { id: 'desk:on',      label: 'Woke the machine up' },
       { id: 'door:upstairs', label: 'Opened a door upstairs' },
     ],
   },

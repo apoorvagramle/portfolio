@@ -65,9 +65,14 @@ function drawPoster(canvas, def) {
 // relative to index.html) instead of the drawn text card — the plane shows
 // the image as-is, same size/placement rules as before.
 const loader = new THREE.TextureLoader();
+// Cache-bust poster art so a replaced file shows up without a hard refresh —
+// these are small, loaded once per page load, so re-fetching every time is cheap.
+const ASSET_VERSION = Date.now();
 function makeImagePoster(def, width, height) {
   const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-  loader.load(new URL(def.image, document.baseURI).href, (tex) => {
+  const url = new URL(def.image, document.baseURI);
+  url.searchParams.set('v', ASSET_VERSION);
+  loader.load(url.href, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
     if (def.flipX) { tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -1; tex.offset.x = 1; }

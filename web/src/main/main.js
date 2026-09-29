@@ -247,17 +247,42 @@ onDuck((active) => {
 // ---------------------------------------------------------------------------
 //  Load
 // ---------------------------------------------------------------------------
+// One bar, 0–100, nothing else. The download reports real byte progress and
+// drives the first half; setup() below can't be measured stage-by-stage like
+// that, so a gentle time-based creep carries the second half smoothly while
+// it runs, and the very end snaps the bar to 100.
+let barPct = 0;
+function setBar(pct) {
+  barPct = Math.max(barPct, pct);
+  const p = Math.round(barPct);
+  ui.bar.style.width = p + '%';
+  ui.status.textContent = `Loading… ${p}%`;
+}
+
+let creepRaf = 0;
+function startCreep() {
+  const t0 = performance.now();
+  const tick = () => {
+    const el = (performance.now() - t0) / 1000;
+    setBar(50 + 45 * (1 - Math.exp(-el / 1.6)));   // eases 50 -> ~95, never quite gets there
+    creepRaf = requestAnimationFrame(tick);
+  };
+  creepRaf = requestAnimationFrame(tick);
+}
+function stopCreep() {
+  cancelAnimationFrame(creepRaf);
+  creepRaf = 0;
+}
+
 const loader = new GLTFLoader();
 loader.load(
   CONFIG.MODEL_URL,
   (gltf) => { setup(gltf.scene, gltf.animations); },
   (e) => {
     if (e.lengthComputable && e.total) {
-      const pct = Math.round((e.loaded / e.total) * 100);
-      ui.bar.style.width = pct + '%';
-      ui.status.textContent = `loading the house — ${pct}%`;
+      setBar((e.loaded / e.total) * 50);
     } else {
-      ui.status.textContent = `loading the house — ${(e.loaded / 1048576).toFixed(1)} MB`;
+      ui.status.textContent = `Loading… ${(e.loaded / 1048576).toFixed(1)} MB`;
     }
   },
   (err) => {
@@ -283,7 +308,8 @@ const TEX_KEYS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', '
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
 async function setup(root, animations = []) {
-  ui.status.textContent = 'working out where the walls are…';
+  setBar(50);
+  startCreep();
   await nextFrame();
 
   // Before anything else looks at the model: split the two gate leaves out of
@@ -364,7 +390,6 @@ async function setup(root, animations = []) {
 
   scene.add(root);
 
-  ui.status.textContent = 'building the walls…';
   await nextFrame();
 
   // Merges every static mesh into one world-space geometry and builds a BVH
@@ -402,12 +427,19 @@ async function setup(root, animations = []) {
   rooms = new Rooms(scene, root, showRoomLabel, { hemi, ambient });
   footsteps = new Footsteps({ walker, rooms });
 
-  ui.status.textContent = 'mapping the floor…';
   await nextFrame();
 
   // Flood-fills every spot the visitor can stand in (~2,100 of them) — the
   // other big synchronous cost, per the README about a second on its own.
   nav = new Nav(walker, CONFIG.player.navCell).build(walker.feet);
+
+  // That flood-fill was the last big synchronous cost, but everything below
+  // (desk, seats, story, item labels, star lights' material patch, music
+  // decor…) still runs as one unbroken stretch with nothing to yield to the
+  // browser. The creep (started above) keeps the bar moving on its own
+  // through this, so this yield is just for a responsive tab, not the bar.
+  await nextFrame();
+
   walker.onReplan = (goal) => {
     const route = nav.findPath(walker.feet, goal);
     if (route && route.length) walker.follow(route, goal); else walker.stop();
@@ -418,8 +450,11 @@ async function setup(root, animations = []) {
 
   // The TV's screen is a plane overlaid on the wall-mounted TV, not part of
   // its mesh (see CONFIG.tv) — off until the `tv` story star is discovered,
-  // then loops the "one more episode" sequence.
+  // then loops the "one more episode" sequence. Once found, clicking the
+  // screen itself toggles it (see `tvTarget` in useInteractive()) — it no
+  // longer restarts on its own just from sitting back down on the sofa.
   tv = new TVScreen(scene);
+  tv.mesh.userData.tvTarget = true;
 
   // The hall's Clock.001 gets the same rolling readout as the TV's own
   // corner clock, bigger and "on the side" of the sofa — off until the same
@@ -600,6 +635,8 @@ async function setup(root, animations = []) {
     }, 350);
   };
 
+  await nextFrame();
+
   marker = makeMarker();
   scene.add(marker);
 
@@ -664,7 +701,6 @@ async function setup(root, animations = []) {
   // MERAGHAR.lens(120) / MERAGHAR.lens(null) — set the lens from the console.
   window.MERAGHAR.lens = (d) => { if (d !== undefined) setLens(d); return CONFIG.player.lensDiag; };
 
-  ui.status.textContent = 'warming up the view…';
   await nextFrame();
 
   // Three.js compiles each material's shader program lazily, on the first
@@ -681,7 +717,6 @@ async function setup(root, animations = []) {
   // intro starts complete instead of popping in (silent, unstyled) piece by
   // piece. Capped so a slow or blocked asset (offline fonts, say) can never
   // strand the visitor on the loader.
-  ui.status.textContent = 'tuning the music…';
   const imageReady = (src) => new Promise((res) => {
     const im = new Image(); im.onload = im.onerror = () => res(); im.src = src;
   });
@@ -704,6 +739,8 @@ async function setup(root, animations = []) {
     ]),
     new Promise((res) => setTimeout(res, 10000)),
   ]);
+  stopCreep();
+  setBar(100);
 
   ready = true;
   if (CONFIG.startDebug) ui.debug.classList.add('show');
@@ -1028,7 +1065,7 @@ function goToRoom(room, opts = {}) {
  */
 function pickInteractive(clientX, clientY) {
   const targets = [...(desk?.targets ?? []), ...(guide?.targets ?? []), ...(story?.targets ?? []), ...(oven?.targets ?? []), ...(musicDecor?.targets ?? []), ...(ipad?.targets ?? []),
-    ...(seats?.targets ?? []), ...revisitTargets()];
+    ...(seats?.targets ?? []), ...revisitTargets(), ...(tvFound() ? [tv.mesh] : [])];
   if (!targets.length) return null;
   camera.updateMatrixWorld();
   ndc.set((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1);
@@ -1036,6 +1073,10 @@ function pickInteractive(clientX, clientY) {
   const hits = raycaster.intersectObjects(targets, true);
   return hits.length ? hits[0].object : null;
 }
+
+/** True once the `tv` star has been found — clicking the screen only turns
+ *  it on (see the `tvTarget` branch in useInteractive()) after that. */
+function tvFound() { return !!story?.items?.find((x) => x.def.id === 'tv')?.found; }
 
 /** Session 48: star hosts (the world map) clickable from their own room,
  *  while no popup / letter / timeline is up. */
@@ -1071,7 +1112,7 @@ function useInteractive(object) {
     const id = object.userData.storyTarget;
     const ok = (id && story.opensInPlace(id)) ||
       (object.userData.storyRevisit && story.opensInPlace(object.userData.storyRevisit)) ||
-      object.userData.ovenTreat || object.userData.ovenTarget || object.userData.ipadLink ||
+      object.userData.ovenTreat || object.userData.ovenTarget || object.userData.ipadLink || object.userData.tvTarget ||
       (object.userData.deskTarget && (desk.state === 'seated' || desk.state === 'on'));
     if (!ok) return false;
   }
@@ -1087,6 +1128,12 @@ function useInteractive(object) {
   // on a door leaf.
   if (object.userData.ovenTreat) return oven.nibble();
   if (object.userData.ovenTarget) return oven.toggle();
+  // The TV screen, clicked directly, once the star has been found: toggles
+  // it on/off in place — no walk, no getting up if already on the sofa.
+  if (object.userData.tvTarget) {
+    if (tv.on) { tv.stop(); hallClock?.stop(); } else { tv.play(); hallClock?.play(); }
+    return true;
+  }
   story.cancel();
   // Anything else you can click is somewhere else in the room, so get out of
   // whatever you were sitting on first.
@@ -1432,13 +1479,13 @@ function onDeskState(state) {
   // The desktop is a screen inside a screen — the navbar steps aside for it.
   navbar?.setHidden(atDesk);
 
-  // The desk's "professional me" discoveries live outside story.js's
-  // reveal() (see CONFIG.story comment), so they need their own explicit
+  // The desk's "professional me" discovery lives outside story.js's
+  // reveal() (see CONFIG.story comment), so it needs its own explicit
   // star-collect chime — every other star gets this for free from reveal().
   // collect() returns true only the first time, so this never re-fires the
-  // sound on repeat visits to the desk.
+  // sound on repeat visits to the desk. Sitting down is the whole discovery;
+  // powering the machine on afterward doesn't need a second notification.
   if (state === 'seated' && discoveries?.collect('desk:sit')) playSfx('star');
-  if (state === 'on' && discoveries?.collect('desk:on')) playSfx('star');
 }
 
 /**
@@ -1447,14 +1494,12 @@ function onDeskState(state) {
  * has to do is put the "Stand up" button on screen and say something once.
  */
 function onSeatState(def, prev) {
-  // Session 48: the TV (and the hall clock that runs with it) is only on
-  // while you're on the sofa. Found the TV star already? Sitting back down
-  // turns it on again; getting up — Esc, the button, a click, a map ride —
-  // switches both off. (The first time, story.onReveal('tv') turns it on.)
+  // The TV (and the hall clock that runs with it) only ever autoplays once —
+  // the first time the `tv` star is found (story.onReveal('tv')). After
+  // that, sitting back down on the sofa does NOT turn it back on; only
+  // clicking the screen itself does (see the `tvTarget` branch in
+  // useInteractive()). Getting up still switches both off, same as before.
   if (prev?.id === 'sofa' && def?.id !== 'sofa') { tv?.stop(); hallClock?.stop(); }
-  if (def?.id === 'sofa' && story?.items?.find((x) => x.def.id === 'tv')?.found) {
-    tv?.play(); hallClock?.play();
-  }
   ui.standup.innerHTML =
     `${def?.standLabel ?? 'Stand up'} <span style="opacity:.5">Esc</span>`;
   ui.standup.classList.toggle('show', !!def);

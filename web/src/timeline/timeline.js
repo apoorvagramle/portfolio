@@ -35,10 +35,10 @@ const STOPS = [
     color: '#f2a93b',
     dark: false,
     icon: 'ic-supplies',
-    title: 'If I could make it, I wanted to try it.',
+    title: 'I never really stopped trying things.',
     body:
-      'Drawing, painting, fabric painting, crafts, DIY — if I could make it, I wanted to try it.\n' +
-      'And honestly, I’ve ended up trying things I never even imagined I would.'
+      'Drawing turned into painting, painting into crafts, crafts into DIY…\n' +
+      'I’d see something and immediately want to try making my own version.'
   },
 
   {
