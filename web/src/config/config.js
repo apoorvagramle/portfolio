@@ -33,6 +33,22 @@ export const CONFIG = {
   },
 
   // -------------------------------------------------------------------------
+  //  PostHog event tracking (analytics/analytics.js) — Session 79. Off by
+  //  default: `enabled: false` means initAnalytics() never loads PostHog's
+  //  script and every track() call everywhere else is a silent no-op.
+  //
+  //  To turn it on: create a PostHog project (posthog.com), paste its
+  //  Project API key below, set `enabled: true`, and — if the project isn't
+  //  on PostHog's US cloud — change `apiHost` to match (EU cloud is
+  //  'https://eu.i.posthog.com'; self-hosted is your own instance's URL).
+  // -------------------------------------------------------------------------
+  posthog: {
+    enabled: false,
+    apiKey: '',   // 'phc_...' — from Project Settings in PostHog
+    apiHost: 'https://us.i.posthog.com',
+  },
+
+  // -------------------------------------------------------------------------
   //  One-shot interaction sounds (sfx.js), Apoorva's "Sound Effect" folder
   //  (18 Sep 2026) — one clip per object, named after what it's for. Every
   //  id below is read by exactly one call site; see that file for which.
@@ -65,10 +81,9 @@ export const CONFIG = {
     click:         { src: '../Sound%20Effect/click.mp3',            volume: 0.5 },
     portfolioClick:{ src: '../Sound%20Effect/portfolio%20click%20sound.mp3', volume: 0.5 },
 
-    // 19 Sep 2026 — footsteps.js. No recordings for either yet, so both are
-    // synthesized on the fly (footstep-synth.js) until real clips land here —
-    // the moment a `src` is filled in, footsteps.js prefers it over the synth
-    // automatically, no other change needed.
+    // 19 Sep 2026 — footsteps.js. Real recordings, played by playSfx() there
+    // (footstep picks a random variant per step so it doesn't loop like one
+    // exact sample on repeat).
     footstep: { volume: 0.35, variants: [1, 2, 3, 4, 5].map((n) => `../Sound%20Effect/footstep%20floor%20${n}.mp3`) },
     footstepGrass: { src: '../Sound%20Effect/walking%20on%20grass.mp3', volume: 0.35 },   // 1s, played on every step in the garden
 
@@ -685,7 +700,9 @@ export const CONFIG = {
       // was the handle's depth). Bottom kept above the handle (y 9.66…9.76,
       // x -0.76…-0.36, sticking out to z -13.642) so it never pokes through.
       name: 'Poster_HighCreativityZone',
-      image: 'src/assets/signs/creativity-zone.jpg',
+      // Session 79: swapped in Apoorva's newer poster art (same 2245x907 art
+      // she supplied for Session 78's banner, so the sizing below is unchanged).
+      image: 'src/assets/signs/creativity-zone.png',
       x: 0.184, z: -13.462,
       // Session 78: a new, wider banner (2245x907 = 2.475:1). Height is
       // yMax-yMin, so it is worked out from the width to keep the art
@@ -1212,14 +1229,15 @@ export const CONFIG = {
       id: 'map', type: 'star', discovery: 'star:map', room: 'living',
       // ON the map (Worldmap: x -16.87…-16.78, y 5.58…8.86, z -31.77…-25.06),
       // roughly where India sits on a standard world map — move it with P if
-      // the art disagrees. From the sofa it is in shot, and a tap opens it
-      // straight away; from anywhere else a tap walks you to the sofa first
-      // (the only spot the map reads well from — standing under it you are
-      // craning 60° up).
+      // the art disagrees. The only spot the map reads well from — standing
+      // under it you are craning 60° up — so, like the TV, it lives on the
+      // sofa seat: tap it from anywhere and you walk to the sofa and sit
+      // first, same as every other star.
       pos: [-16.55, 7.50, -29.60],
-      // Session 24: the one star you never walk to — tap it (from the sofa,
-      // where it is in shot, or anywhere else) and the popup just opens.
-      direct: true,
+      // Was `direct: true` (Session 24: "the one star you never walk to") —
+      // Apoorva asked every star to walk-then-open, this one included, so it
+      // now shares the TV's `seat: 'sofa'` instead.
+      seat: 'sofa',
       // Session 48: the map itself is clickable too. Once the star has been
       // collected (and so is gone), clicking `Worldmap` brings the envelope
       // back up — main.js's pickInteractive / story.revisit().
@@ -1251,11 +1269,10 @@ export const CONFIG = {
       // 3.45) — was 4.30, floating noticeably above where you're looking.
       pos: [-14.30, 3.45, -13.60],
       at: { stand: [-13.10, 0.05, -13.00], r: 1.0, yaw: 1.49, pitch: -0.35 },
-      // Session 39: no walk-over, no turn, no "talk first, then drift up".
-      // Tapping the star (or walking into `at.stand`) puts you at the table
-      // and the view goes straight to `CONFIG.coffee.lean` in one move,
-      // while the line types itself top-left.
-      snap: true,
+      // Was `snap: true` (Session 39: no walk-over, straight to
+      // `CONFIG.coffee.lean` in one move) — Apoorva asked every star to
+      // walk-then-open, so this one now takes the normal walk → face →
+      // reveal path like dessert/social/music, same `at.stand` as before.
       kicker: 'The coffee station',
       // Session 19: the mini-game is built (coffee.js). This popup is only the
       // opening line; closing it hands the table over to the visitor, and the

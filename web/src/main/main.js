@@ -26,7 +26,7 @@ import { startIntro, INTRO_CHOICES } from '../intro/intro.js';
 import { findByName } from '../util/util.js';
 import { glassifyChip, glassifyPanel } from '../glassify/glassify.js';
 import { makeGlassStar, makeQuestionCoin, initGlassStars } from '../glass-star/glass-star.js';
-import { startLoop, stopLoop, playSfx } from '../sfx/sfx.js';
+import { startLoop, stopLoop, playSfx, onDuck } from '../sfx/sfx.js';
 import { Footsteps } from '../footsteps/footsteps.js';
 import { ItemLabels } from '../item-labels/item-labels.js';
 import { Signs } from '../signs/signs.js';
@@ -37,11 +37,16 @@ import { GardenBook } from '../book/book.js';
 import { Butterfly } from '../butterfly/butterfly.js';
 import { Finale } from '../finale/finale.js';
 import { Tutorial } from '../tutorial/tutorial.js';
+import { initAnalytics, track } from '../analytics/analytics.js';
 
 // Let the ordinary Raycaster use the BVH (used for click-to-move picking).
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+// A no-op until CONFIG.posthog.enabled + .apiKey are both set (see
+// analytics.js and config.js) — safe to call unconditionally.
+initAnalytics();
 
 const ui = {
   loader:   document.getElementById('loader'),
@@ -204,6 +209,41 @@ instrumentSong.addEventListener('error', () => {
   stopInstrumentSong();
 });
 
+// Bug (reported after hosting, mobile): the garden's ambient loop and the
+// poem recording both played right on top of the house music with nothing
+// coordinating them — on a phone's one speaker that's a mush, not three
+// distinct sounds. sfx.js's `duck`/`onDuck` (garden ambience, the book's
+// poem, coffee's pour/froth/brew) is the other half of this: anything that
+// registers there flips `active` here, and the house music fades down and
+// back instead of the two mixing. The instrument song keeps its own
+// stronger pause/resume (Session 70) — this only fades the volume, so the
+// two behaviours never fight as long as the song's pause wins while it's on.
+const DUCK_VOLUME_SCALE = 0.18;   // house music's own volume while ducked
+const DUCK_FADE_MS = 220;
+let duckFadeRaf = 0;
+
+function fadeBackgroundMusicTo(scale, ms) {
+  cancelAnimationFrame(duckFadeRaf);
+  const base = CONFIG.backgroundMusic?.volume ?? 0.24;
+  const from = backgroundMusic.volume;
+  const to = Math.max(0, Math.min(1, scale)) * base;
+  if (ms <= 0 || from === to) { backgroundMusic.volume = to; return; }
+  const start = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - start) / ms);
+    backgroundMusic.volume = from + (to - from) * k;
+    if (k < 1) duckFadeRaf = requestAnimationFrame(step);
+  };
+  duckFadeRaf = requestAnimationFrame(step);
+}
+
+onDuck((active) => {
+  // The instrument song's own pause already silences the house music
+  // outright; don't fight it by also fading it while the song's playing.
+  if (!instrumentSong.paused) return;
+  fadeBackgroundMusicTo(active ? DUCK_VOLUME_SCALE : 1, DUCK_FADE_MS);
+});
+
 // ---------------------------------------------------------------------------
 //  Load
 // ---------------------------------------------------------------------------
@@ -342,6 +382,10 @@ async function setup(root, animations = []) {
     navbar?.onCollect(def);
     // Session 74: the last counted star arms the sign-off card (finale.js).
     if (discoveries.count === discoveries.total) finale?.arm(def.id);
+    // Session 79: every discovery — room, seat, door, stairs, the desk, and
+    // every story star (easter eggs are tracked separately, from
+    // story.onReveal below, since they never call discoveries.collect()).
+    track('discovery', { id: def.id, secret: !!def.secret, progress: `${discoveries.count}/${discoveries.total}` });
   });
 
   doors = new Doors(scene, root, (def) => {
@@ -528,6 +572,11 @@ async function setup(root, animations = []) {
   // is just one more thing on screen behind a modal.
   let hintShown = false;
   story.onReveal = (id) => {
+    // Session 79: every star AND every easter egg opens through here, found
+    // by click or by walking into it — the one place that covers all nine
+    // stars and every coin in a single hook (discoveries.collect() above
+    // misses the coins, since they never call it).
+    track('star_opened', { id });
     if (id === 'tv') { tv.play(); hallClock.play(); }
     // Session 39: straight to the table view the moment the star is found —
     // the line types top-left while you're already looking down at the table.
@@ -1052,7 +1101,7 @@ function useInteractive(object) {
   // Session 70: …and plays "Tum hi ho", the lights looping along with it.
   if (object.userData.musicTarget) return playInstrumentSong();
   // Session 61: the studio iPad — open the Instagram profile in a new tab.
-  if (object.userData.ipadLink) return ipad.open();
+  if (object.userData.ipadLink) { track('desktop_link_click', { url: object.userData.ipadLink }); return ipad.open(); }
   return guide.activate(object);
 }
 
@@ -1383,8 +1432,13 @@ function onDeskState(state) {
   // The desktop is a screen inside a screen — the navbar steps aside for it.
   navbar?.setHidden(atDesk);
 
-  if (state === 'seated') discoveries?.collect('desk:sit');
-  if (state === 'on') discoveries?.collect('desk:on');
+  // The desk's "professional me" discoveries live outside story.js's
+  // reveal() (see CONFIG.story comment), so they need their own explicit
+  // star-collect chime — every other star gets this for free from reveal().
+  // collect() returns true only the first time, so this never re-fires the
+  // sound on repeat visits to the desk.
+  if (state === 'seated' && discoveries?.collect('desk:sit')) playSfx('star');
+  if (state === 'on' && discoveries?.collect('desk:on')) playSfx('star');
 }
 
 /**

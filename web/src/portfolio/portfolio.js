@@ -39,6 +39,12 @@ export const PORTFOLIO = {
     url: '../Apoorva%27s_Resume.pdf',
     pages: 1,
     size: '177 KB',
+    // Session 79: the actual résumé page, rendered once to a PNG (pdftoppm,
+    // 220dpi) so the window shows the real document instead of a hand-
+    // typeset summary. desktop.js draws this at full width when it loads;
+    // `summary` below stays as the fallback if the image is ever unset or
+    // fails to load.
+    image: './src/assets/resume/resume-page-1.png',
     // The one-page summary drawn in the window itself — condensed from the PDF.
     summary: [
       { head: 'PROFILE',    lines: ['Passionate full-stack developer with 2+ years of experience building scalable, efficient, and user-friendly applications. Always eager to learn and solve complex problems.'] },

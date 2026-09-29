@@ -44,6 +44,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config/config.js';
 import { findByName } from '../util/util.js';
+import { duck } from '../sfx/sfx.js';
 
 const C = CONFIG.coffee ?? {};
 
@@ -165,6 +166,22 @@ export class Coffee {
     this.armed = false;          // nothing responds until the coffee star is found
     this.done = false;
     this.time = 0;
+
+    // Bug (reported after hosting, mobile): the milk pour couldn't be heard.
+    // playSfx() below builds a fresh `new Audio(src)` per pour and cuts it
+    // off exactly when the pour animation ends (finishPour -> playSfx(null))
+    // — fine on a fast connection, but on mobile data the clip can still be
+    // buffering when that cutoff lands, so it never gets far enough to make
+    // a sound. Warming every clip here, once, up front, means the bytes are
+    // already on the device by the time any tool is picked up; the actual
+    // `new Audio()` at play time then hits the browser's own HTTP cache
+    // instead of the network. References are kept so the fetches aren't
+    // dropped by the GC before they land.
+    this._sfxWarm = [...new Set(Object.values(C.sfx ?? {}))].filter(Boolean).map((src) => {
+      const a = new Audio(src);
+      a.preload = 'auto';
+      return a;
+    });
 
     this.ray = new THREE.Raycaster();
     this.ray.firstHitOnly = false;
@@ -779,9 +796,17 @@ export class Coffee {
   playSfx(name) {
     const src = name ? C.sfx?.[name] : null;
     this.sfx?.pause();
+    this._releaseDuck?.();
+    this._releaseDuck = null;
     this.sfx = null;
     if (!src) return;
     const a = new Audio(src); a.volume = C.sfxVolume ?? 0.8; a.play().catch(() => {});
+    // Ducks the house music for as long as the pour/froth/brew clip plays
+    // (see sfx.js's `duck`/`onDuck`) instead of mixing under it — released
+    // above the moment the next call to playSfx() (including playSfx(null),
+    // which finishPour() uses to stop it) replaces or clears it.
+    this._releaseDuck = duck('coffee-sfx');
+    a.addEventListener('ended', () => { this._releaseDuck?.(); this._releaseDuck = null; });
     this.sfx = a;
   }
 

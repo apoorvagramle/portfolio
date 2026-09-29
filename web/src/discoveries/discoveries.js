@@ -55,7 +55,7 @@ export class Discoveries {
     const def = this.byId.get(id);
     if (!def) return false;          // not on either list: ignore quietly
     this.found.add(id);
-    console.log(`[discoveries] +${id} → ${this.count}/${this.total}`, new Error().stack.split('\n').slice(2, 6).join('\n'));
+    console.log(`[discoveries] +${id} → ${this.count}/${this.total}`);
     this.onCollect?.(def, this);
     return true;
   }

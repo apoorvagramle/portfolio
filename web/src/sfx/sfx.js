@@ -79,6 +79,58 @@ for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
   addEventListener(ev, unlock, { capture: true, passive: true });
 }
 
+// ---------------------------------------------------------------------------
+//  Ducking the background bed.
+//
+//  Bug (Sept 2026, reported after hosting): the garden's ambient loop and
+//  the house music played on top of each other with nothing coordinating
+//  them, and on a phone's single speaker that reads as a mush rather than
+//  two distinct sounds. The instrument song already solved this for itself
+//  by pausing the house music outright — everything else here should duck
+//  it (fade it down, not stop it) while it plays and let it back up when
+//  it's done, which is what main.js actually wires to its own background
+//  track via `onDuck` below.
+//
+//  Sources register a token while they're audible and release it when
+//  they're not; the bed only comes back once every token has been
+//  released. `typewriterKey` is deliberately excluded — it fires on nearly
+//  every line of narration anywhere in the house, and ducking the music
+//  for each keystroke would make it pump constantly rather than fixing an
+//  actual clash.
+// ---------------------------------------------------------------------------
+const NO_DUCK = new Set(['typewriterKey']);
+const duckSources = new Set();
+const duckListeners = new Set();
+
+function notifyDuck() {
+  const active = duckSources.size > 0;
+  for (const fn of duckListeners) fn(active);
+}
+
+/** Register something that should duck the background bed while it's
+ *  audible. Returns a release function — call it when the sound stops.
+ *  Safe to call from several sources at once; the bed only comes back once
+ *  every one of them has released. */
+export function duck(token) {
+  duckSources.add(token);
+  notifyDuck();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    duckSources.delete(token);
+    notifyDuck();
+  };
+}
+
+/** Subscribe to duck state changes: `cb(true)` when something starts
+ *  playing over the bed, `cb(false)` once everything has released it.
+ *  Returns an unsubscribe function. */
+export function onDuck(cb) {
+  duckListeners.add(cb);
+  return () => duckListeners.delete(cb);
+}
+
 /** Start a decoded clip; returns the source node, or null if not decoded yet. */
 function playBuffer(src, volume, loop = false) {
   const buf = ctx && buffers.get(resolve(src));
@@ -123,27 +175,29 @@ export function typeTick(ch = 'x') {
 const loops = new Map();   // id -> the playing Audio node, at most one per id
 
 /** Start a looping ambient clip by id. Safe to call repeatedly — a second
- *  call while it's already running does nothing. */
+ *  call while it's already running does nothing. Ducks the background bed
+ *  for as long as it plays (see `duck` above), except `typewriterKey`. */
 export function startLoop(id, { volume } = {}) {
   if (!id || loops.has(id)) return;
   const chosen = pick(id);
   if (!chosen) return;
   const vol = volume ?? chosen.volume ?? 0.8;
+  const release = NO_DUCK.has(id) ? null : duck(`loop:${id}`);
   const src = playBuffer(chosen.src, vol, true);
-  if (src) { loops.set(id, { pause: () => src.stop() }); return; }
+  if (src) { loops.set(id, { pause: () => { src.stop(); release?.(); } }); return; }
   loadBuffer(chosen.src);
   const template = templateFor(chosen.src, chosen.volume);
   const node = template.cloneNode(true);
   node.loop = true;
   node.volume = vol;
   node.play().catch(() => {});
-  loops.set(id, node);
+  loops.set(id, { pause: () => { node.pause(); release?.(); } });
 }
 
 /** Stop a loop started with `startLoop`. Safe to call if it isn't playing. */
 export function stopLoop(id) {
-  const node = loops.get(id);
-  if (!node) return;
-  node.pause();
+  const entry = loops.get(id);
+  if (!entry) return;
+  entry.pause();
   loops.delete(id);
 }

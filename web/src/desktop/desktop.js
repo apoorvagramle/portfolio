@@ -114,6 +114,19 @@ export class Desktop {
       img.onload = () => { this.photo = img; this.dirty = true; };
       img.src = P.photo;
     }
+
+    // Session 79: the résumé window shows the actual rendered page, not a
+    // hand-typeset summary — same lazy-load-then-redraw pattern as `photo`.
+    // `resumeImgFailed` lets paneResume() fall back to the old text summary
+    // if the image is missing or 404s, instead of drawing a blank sheet.
+    this.resumeImg = null;
+    this.resumeImgFailed = false;
+    if (P.resume.image) {
+      const img = new Image();
+      img.onload = () => { this.resumeImg = img; this.dirty = true; };
+      img.onerror = () => { this.resumeImgFailed = true; this.dirty = true; };
+      img.src = P.resume.image;
+    }
   }
 
   // ---- machine state ------------------------------------------------------
@@ -710,8 +723,31 @@ export class Desktop {
 
     // the sheet
     const sy = y + 34, sw = Math.min(w, 640);
-    let ty = sy + 52;
     const sheetX = x;
+
+    // Session 79: the real résumé page, once it has loaded — this is what
+    // "directly display the résumé" means, rather than the old hand-
+    // typeset summary below. Falls back to that summary if `resume.image`
+    // is unset or fails to load, so the window is never left blank.
+    if (this.resumeImg) {
+      const img = this.resumeImg;
+      const sh = sw * (img.height / img.width);
+      this.rect(sheetX, sy, sw, sh, '#fdfcfa', '#d3d0cb');
+      this.g.drawImage(img, sheetX, sy, sw, sh);
+      const note = 'Download opens the PDF itself.';
+      this.txt(note, x, sy + sh + 30, { size: 14, color: C.muted });
+      return sy + sh + 40;
+    }
+    if (P.resume.image && !this.resumeImgFailed) {
+      // Still loading — a plain placeholder sheet, not a flash of the
+      // summary text that would just be replaced a moment later.
+      const sh = 700;
+      this.rect(sheetX, sy, sw, sh, '#fdfcfa', '#d3d0cb');
+      this.txt('Loading…', sheetX + 34, sy + 40, { size: 15, color: C.muted });
+      return sy + sh + 40;
+    }
+
+    let ty = sy + 52;
     this.txt(`${P.first} ${P.last}`.trim(), sheetX + 34, ty, { size: 24, w: 700 });
     ty += 26;
     this.txt(P.role, sheetX + 34, ty, { size: 15, color: C.muted });

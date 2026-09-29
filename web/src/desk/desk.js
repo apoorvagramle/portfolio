@@ -19,6 +19,7 @@ import { findByName } from '../util/util.js';
 import { Desktop, VW, VH } from '../desktop/desktop.js';
 import { makeGlassStar } from '../glass-star/glass-star.js';
 import { playSfx } from '../sfx/sfx.js';
+import { track } from '../analytics/analytics.js';
 
 const BEDROOM = CONFIG.rooms.find((r) => r.id === 'bedroom')?.bounds ?? null;
 
@@ -77,7 +78,11 @@ export class Desk {
 
     // ---- the machine ------------------------------------------------------
     this.desktop = new Desktop({
-      onOpen: (url) => window.open(url, '_blank', 'noopener'),
+      // Session 79: every clickable link on the desktop — the résumé
+      // download, project/contact links, everything with a `url` in
+      // portfolio.js — funnels through here, so this one hook covers all
+      // of them.
+      onOpen: (url) => { track('desktop_link_click', { url }); window.open(url, '_blank', 'noopener'); },
       onPowerOff: () => this.powerOff(),
     });
 

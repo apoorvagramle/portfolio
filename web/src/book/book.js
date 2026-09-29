@@ -49,6 +49,28 @@
 
 import * as THREE from 'three';
 import { findByName } from '../util/util.js';
+import { duck } from '../sfx/sfx.js';
+
+// Bug (reported after hosting, mobile): the poem's reading never started —
+// the recording's play() was silently refused. The star that opens this
+// book can be found just by walking near it (story.js's reveal(), proximity
+// path), not only by a tap, so the play() call three timers deep in
+// _openOverlay() below isn't reliably still "in" a user gesture by the time
+// it fires, and mobile browsers (iOS Safari in particular) can then refuse
+// it outright. The fix mirrors sfx.js's own AudioContext-unlock idiom: a
+// blocked play() is remembered here and retried on the visitor's very next
+// tap/key anywhere on the page, which — since the book is now open in front
+// of them — arrives within a moment either way.
+const pendingPlays = new Set();
+function retryPendingPlays() {
+  if (!pendingPlays.size) return;
+  for (const a of pendingPlays) {
+    a.play().then(() => pendingPlays.delete(a)).catch(() => {});
+  }
+}
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
+  addEventListener(ev, retryPendingPlays, { capture: true, passive: true });
+}
 
 const MARKUP = `
   <button class="ltr-close" data-el="btnClose" aria-label="Close the book">&times;</button>
@@ -381,7 +403,7 @@ export class GardenBook {
 
     // The recording (optional).
     const src = (content.audio ?? '').trim();
-    if (this.audio) { this.audio.pause(); this.audio = null; }
+    if (this.audio) { this.audio.pause(); pendingPlays.delete(this.audio); this.audio = null; }
     if (src) {
       // Loaded as a blob, not streamed: the dev server (serve.py) doesn't
       // answer range requests, and without them Chrome can't seek, so a
@@ -400,7 +422,10 @@ export class GardenBook {
             if (this.audio !== a) return;
             const at = a._pendingAt;
             a.src = url;
-            if (at != null) { a.currentTime = at; a.play().catch(() => {}); }
+            if (at != null) {
+              a.currentTime = at;
+              a.play().catch(() => pendingPlays.add(a));   // retried on the next tap — see the header note
+            }
           })
           .catch(() => { a.dispatchEvent(new Event('error')); });
       }
@@ -597,10 +622,17 @@ export class GardenBook {
     this.root.classList.add('lyrics-on');
     if (this.audio) {
       const a = this.audio;
+      // Ducks the house music (and the garden's own ambient loop) for as
+      // long as the recording plays — see sfx.js's `duck`/`onDuck` — instead
+      // of the two mixing under the poem, which is what was reported.
+      this._releaseDuck ??= duck('book-poem');
       if (!a.src) { a._pendingAt = at; }   // still fetching: starts when it lands
       else {
         try { a.currentTime = at; } catch { /* not ready yet */ }
-        a.play().catch((err) => console.warn('[book] recording could not play:', err?.message ?? err));
+        a.play().catch((err) => {
+          console.warn('[book] recording could not play:', err?.message ?? err);
+          pendingPlays.add(a);   // one retry on the visitor's next tap/key
+        });
       }
     } else {
       ly.t0 = performance.now() - at * 1000;
@@ -655,6 +687,8 @@ export class GardenBook {
     ly.done = true;
     ly.playing = false;
     cancelAnimationFrame(this._raf);
+    this._releaseDuck?.();
+    this._releaseDuck = null;
     if (TIMING) { this._timeDone(); }
     this.root.classList.add('lyrics-done');
     this.root.classList.remove('lyrics-on');
@@ -663,7 +697,9 @@ export class GardenBook {
   _stop() {
     cancelAnimationFrame(this._raf);
     if (this.ly) this.ly.playing = false;
-    if (this.audio) { this.audio._pendingAt = null; this.audio.pause(); }
+    if (this.audio) { this.audio._pendingAt = null; this.audio.pause(); pendingPlays.delete(this.audio); }
+    this._releaseDuck?.();
+    this._releaseDuck = null;
   }
 
   // ---- timing tool (?booktime) -----------------------------------------
