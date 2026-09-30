@@ -63,7 +63,7 @@ export class Tutorial {
         html: this.coarse
           ? '<b>Tap</b> the circle to walk there'
           : '<b>Click</b> the circle to walk there <span>·</span> or use <b>W A S D</b>' },
-      { id: 'look', html: '<b>Drag</b> to look around' },
+      { id: 'look', html: '<b>Drag</b> to look around <span>·</span> <b>look behind you</b> too' },
       { id: 'star',  html: 'Collect <b>✦ stars</b> — the tracker up top keeps count' },
     ];
     // The star step first asks the visitor to find the star (it can end up
