@@ -29,6 +29,7 @@ const DROP_T = 0.42;          // s — one block's fall
 const BUILD_MAX = 2600;       // blocks/s at most, so even a fast load reads as building (~4 s for the house)
 const DOOR = [-17.1, 2.6, -23.25];   // the front door (Door node), world units
 const PORCH_VIEW_H = 16;      // world units visible top to bottom at the end ≈ the porch shot
+const SORT_BUCKETS = 4096;    // depth buckets for the far-to-near counting sort (a bucket is ~0.02 of a block)
 const LIGHT = norm([-0.55, 0.8, -0.35]);   // sun from the south-west, fixed in the world
 
 function norm(v) { const l = Math.hypot(...v); return v.map((x) => x / l); }
@@ -120,7 +121,13 @@ class HouseLoader {
     for (const i of this.windows) this.winDelay[i] = Math.random() * 0.9;
 
     this.idx = new Uint32Array(H.n);
+    this.sorted = new Uint32Array(H.n);
+    this.keys = new Uint16Array(H.n);
+    this.counts = new Uint32Array(SORT_BUCKETS + 1);
+    this.m = 0;
     this.depth = new Float32Array(H.n);
+    this.q = 1;                 // render scale; drops if the machine can't hold the frame rate
+    this._n = 0;
     this.yaw = 0.75;
     this.fit = this.fit.bind(this);
     addEventListener('resize', this.fit);
@@ -130,7 +137,7 @@ class HouseLoader {
   }
 
   fit() {
-    const dpr = Math.min(1.5, devicePixelRatio || 1);
+    const dpr = Math.min(1.5, devicePixelRatio || 1) * (this.q ?? 1);
     this.canvas.width = Math.round(innerWidth * dpr);
     this.canvas.height = Math.round(innerHeight * dpr);
     this.W = this.canvas.width; this.H = this.canvas.height;
@@ -159,7 +166,27 @@ class HouseLoader {
 
   tick(ms) {
     const now = ms / 1000;
-    const dt = Math.min(0.05, now - (this._last ?? now)); this._last = now;
+    // Last resort on a very slow machine: draw every other frame, which leaves
+    // the main thread to the model download and parse. (Not during the ending.)
+    if (this.half && this.endAt == null && (this._skip = !this._skip)) {
+      this.raf = requestAnimationFrame((t) => this.tick(t));
+      return;
+    }
+    const rawDt = now - (this._last ?? now);
+    const dt = Math.min(0.05, rawDt); this._last = now;
+    this._n++;
+    // A slow machine (the GLB is also being parsed on this same thread) gets a
+    // smaller canvas, then a halved frame rate: the blocks are chunky and the
+    // turntable slow, so both still read fine.
+    if (!this.reduced && rawDt > 0) {
+      this._ema = this._ema == null ? rawDt : this._ema * 0.9 + rawDt * 0.1;
+      if (this._n > 30 && !this.half) {
+        if (this._ema > (this.q <= 0.5 ? 0.05 : 0.034)) {
+          this._ema = null; this._n = 0;
+          if (this.q > 0.5) { this.q = Math.max(0.5, this.q - 0.25); this.fit(); } else this.half = true;
+        }
+      }
+    }
     const H = this.h;
 
     // --- build ---
@@ -188,29 +215,50 @@ class HouseLoader {
     const cx0 = this.W / 2, cy0 = this.H * lerp(0.53, 0.5, cam);
 
     // --- sort far to near ---
+    // The turntable is slow, so the order only needs refreshing every few
+    // frames (or sooner when the camera really moves, as in the ending). It's
+    // a counting sort on quantised depth: O(n), where a comparator sort of
+    // ~10k blocks every frame was the main cost.
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.W, this.H);
     const P = H.P;
-    let m = 0;
-    for (let i = 0; i < H.n; i++) {
-      if (this.placedAt[i] < -50 && !this.reduced) continue;
-      if (this.placedAt[i] < 0 && this.placedAt[i] > -50) continue;
-      const dx = H.X[i] - tx, dz = H.Z[i] - tz;
-      this.depth[i] = (dx * sy + dz * cy) * ce + (H.Y[i] - ty) * se;
-      this.idx[m++] = i;
+    const moved = this._sy == null || Math.abs(yaw - this._sy) > 0.01 || Math.abs(elev - this._se) > 0.01 ||
+      Math.abs(tx - this._stx) + Math.abs(ty - this._sty) + Math.abs(tz - this._stz) > 0.05;
+    if (moved || this._n % 3 === 0) {
+      this._sy = yaw; this._se = elev; this._stx = tx; this._sty = ty; this._stz = tz;
+      const depth = this.depth, idx0 = this.idx;
+      let n0 = 0, dmin = Infinity, dmax = -Infinity;
+      for (let i = 0; i < H.n; i++) {
+        if (this.placedAt[i] < -50 && !this.reduced) continue;
+        if (this.placedAt[i] < 0 && this.placedAt[i] > -50) continue;
+        const dx = H.X[i] - tx, dz = H.Z[i] - tz;
+        const d = (dx * sy + dz * cy) * ce + (H.Y[i] - ty) * se;
+        depth[i] = d;
+        if (d < dmin) dmin = d;
+        if (d > dmax) dmax = d;
+        idx0[n0++] = i;
+      }
+      const counts = this.counts, keys = this.keys, out = this.sorted;
+      counts.fill(0);
+      const kk = (SORT_BUCKETS - 1) / Math.max(1e-6, dmax - dmin);
+      for (let j = 0; j < n0; j++) { const b = ((depth[idx0[j]] - dmin) * kk) | 0; keys[j] = b; counts[b + 1]++; }
+      for (let b = 1; b <= SORT_BUCKETS; b++) counts[b] += counts[b - 1];
+      for (let j = 0; j < n0; j++) out[counts[keys[j]]++] = idx0[j];
+      this.m = n0;
     }
-    const idx = this.idx.subarray(0, m), depth = this.depth;
-    idx.sort((a, b) => depth[a] - depth[b]);
+    const m = this.m, idx = this.sorted;
 
     // corner offsets of each visible face, for this view
     const half = P * 0.5 * 1.04;       // a hair over half, so neighbouring faces overlap: no seams
     const faces = [];
     let seen = 0;                       // side faces turned toward us, as bits
+    let visMask = 0;                    // every face turned toward us, as bits
     for (const f of FACES) {
       const [a, b, c] = f.n;
       if ((a * sy + c * cy) * ce + b * se <= 0.001) continue;      // facing away
       if (!b) seen |= f.bit;
+      visMask |= f.bit;
       faces.push({
         bit: f.bit, shade: f.shade,
         pts: f.corners.map(([x, y, z]) => {
@@ -223,6 +271,7 @@ class HouseLoader {
     const pal = this.pal, dim = 1 - dusk * 0.3;
     for (let j = 0; j < m; j++) {
       const i = idx[j];
+      if (!(H.mask[i] & visMask)) continue;     // buried from this side: nothing to draw
       const k = this.reduced ? 1 : clamp01((now - this.placedAt[i]) / DROP_T);
       const fall = (1 - easeOut(k)) * DROP * P;
       const dx = H.X[i] - tx, dy = H.Y[i] + fall - ty, dz = H.Z[i] - tz;

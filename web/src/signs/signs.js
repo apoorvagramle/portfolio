@@ -69,7 +69,10 @@ const loader = new THREE.TextureLoader();
 // these are small, loaded once per page load, so re-fetching every time is cheap.
 const ASSET_VERSION = Date.now();
 function makeImagePoster(def, width, height) {
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+  // transparent: the poster PNGs carry an alpha channel (the creativity
+  // banner has none of its own background) — without this the see-through
+  // pixels render solid black instead of showing the door behind.
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, alphaTest: 0.01 });
   const url = new URL(def.image, document.baseURI);
   url.searchParams.set('v', ASSET_VERSION);
   loader.load(url.href, (tex) => {

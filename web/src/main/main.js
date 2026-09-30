@@ -253,7 +253,7 @@ onDuck((active) => {
 // it runs, and the very end snaps the bar to 100.
 let barPct = 0;
 function setBar(pct) {
-  barPct = Math.max(barPct, pct);
+  barPct = Math.max(barPct, Math.min(100, pct));
   const p = Math.round(barPct);
   ui.bar.style.width = p + '%';
   ui.status.textContent = `Loading… ${p}%`;
@@ -280,7 +280,13 @@ loader.load(
   (gltf) => { setup(gltf.scene, gltf.animations); },
   (e) => {
     if (e.lengthComputable && e.total) {
-      setBar((e.loaded / e.total) * 50);
+      // On a gzip-ing host (GitHub Pages) `total` is the compressed size while
+      // `loaded` counts the decompressed bytes, so loaded/total runs far past 1
+      // (the loader once read "311%"). Once that shows, scale by a typical
+      // ratio instead, and never let the download's half pass 97% of itself.
+      let frac = e.loaded / e.total;
+      if (frac > 1) frac = frac / 6;
+      setBar(Math.min(0.97, frac) * 50);
     } else {
       ui.status.textContent = `Loading… ${(e.loaded / 1048576).toFixed(1)} MB`;
     }

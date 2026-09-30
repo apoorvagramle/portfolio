@@ -38,6 +38,9 @@ const DEFAULTS = {
   arriveDist: 1.25,           // horizontal distance at which the star pops
   starDelaySec: 0.9,          // star fades in this long before the view starts walking
   afterPopSec: 0.7,           // pop -> onDone
+  seenAngle: 0.6,             // rad (horizontal): the star counts as "seen" once it is this close to where you look
+  behindAngle: 1.75,          // rad: further round than this and the hint says "behind you"
+  seenTimeoutSec: 14,         // never hold the walk-up back longer than this, seen or not
 };
 
 export class Tutorial {
@@ -63,6 +66,13 @@ export class Tutorial {
       { id: 'look', html: '<b>Drag</b> to look around' },
       { id: 'star',  html: 'Collect <b>✦ stars</b> — the tracker up top keeps count' },
     ];
+    // The star step first asks the visitor to find the star (it can end up
+    // behind them after the look step's drag), and only shows "Collect stars"
+    // once it is actually in view.
+    this.hints = {
+      behind: '<b>Look behind you</b> <span>·</span> a <b>✦ star</b> is hiding there',
+      around: '<b>Look around</b> <span>·</span> a <b>✦ star</b> is hiding nearby',
+    };
 
     const el = document.createElement('div');
     el.id = 'tutorial';
@@ -125,6 +135,35 @@ export class Tutorial {
     this.star = star;
     this.starT = 0; this.walking = false; this.popped = false;
     this.lastPos = null; this.lastCheck = 0;
+    this.starSeen = false; this.seenT = 0; this.hintKind = null;
+    this.starSeenCheck();       // already in view? then straight to "Collect stars"
+  }
+
+  /** Horizontal angle (rad) between where the visitor is looking and the star. */
+  starAngle() {
+    const f = this.walker.feet, p = this.starPos;
+    const d = this.camera.getWorldDirection(new this.THREE.Vector3());
+    const dl = Math.hypot(d.x, d.z) || 1, tx = p[0] - f.x, tz = p[2] - f.z, tl = Math.hypot(tx, tz) || 1;
+    return Math.acos(Math.max(-1, Math.min(1, (d.x * tx + d.z * tz) / (dl * tl))));
+  }
+
+  /** Decide whether the star has been seen yet, and keep the note in step. */
+  starSeenCheck() {
+    if (this.starSeen) return true;
+    const ang = this.starAngle();
+    if (ang < this.o.seenAngle || this.starT > this.o.seenTimeoutSec) {
+      this.starSeen = true;
+      if (this.hintKind) { this.textEl.innerHTML = this.steps[this.i]?.html ?? ''; this.el.classList.remove('hint'); }
+      this.hintKind = null;
+      return true;
+    }
+    const kind = ang > this.o.behindAngle ? 'behind' : 'around';
+    if (kind !== this.hintKind) {
+      this.hintKind = kind;
+      this.textEl.innerHTML = this.hints[kind];
+      this.el.classList.add('hint');
+    }
+    return false;
   }
 
   /** Where the view stops: a little short of the star, on the visitor's side. */
@@ -167,9 +206,12 @@ export class Tutorial {
     s.scale.setScalar(1 + Math.sin(this.time * 2.1) * 0.06);
     if (this.popped) return;
 
-    // After a beat to see it, the view walks up to it — and keeps at it if
-    // something interrupts the walk (a keypress, a click elsewhere).
-    if (this.starT >= this.o.starDelaySec) {
+    // Hold everything until the visitor has actually seen the star, then
+    // after a beat to look at it, the view walks up to it — and keeps at it
+    // if something interrupts the walk (a keypress, a click elsewhere).
+    if (!this.starSeenCheck()) return;
+    this.seenT += dt;
+    if (this.seenT >= this.o.starDelaySec) {
       const d = this.horiz();
       if (d <= this.o.arriveDist) { this.pop(); return; }
       const f = this.walker.feet;
