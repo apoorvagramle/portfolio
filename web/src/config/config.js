@@ -890,10 +890,11 @@ export const CONFIG = {
     // Zooming the browser out packs more of the world into the same pixels,
     // which is where the "still looks chunky" comes from — it is aliasing,
     // not texture resolution. Rendering above the display's own pixel ratio
-    // supersamples that away. 1.5 is the sweet spot; drop to 1.0 (or add
-    // ?lowres to the URL) if the frame rate suffers.
-    superSample:    1.5,
-    maxPixelRatio:  2.5,
+    // supersamples that away. 1.25 balances sharpness against input latency
+    // (INP); main.js also shrinks the canvas adaptively if frames run slow.
+    // Add ?lowres to the URL to force 1x.
+    superSample:    1.25,
+    maxPixelRatio:  2,
 
     // Depth precision for surfaces that sit almost on top of each other.
     near: 0.5,

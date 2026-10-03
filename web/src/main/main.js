@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 
 import { CONFIG } from '../config/config.js';
-import { createWorld } from '../scene/scene.js';
+import { createWorld, setResolutionScale } from '../scene/scene.js';
 import { buildCollider } from '../collider/collider.js';
 import { Walker } from '../player/player.js';
 import { Doors } from '../doors/doors.js';
@@ -37,7 +37,7 @@ import { GardenBook } from '../book/book.js';
 import { Butterfly } from '../butterfly/butterfly.js';
 import { Finale } from '../finale/finale.js';
 import { Tutorial } from '../tutorial/tutorial.js';
-import { initAnalytics, track } from '../analytics/analytics.js';
+import { initAnalytics, track, setProps } from '../analytics/analytics.js';
 
 // Let the ordinary Raycaster use the BVH (used for click-to-move picking).
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -47,6 +47,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 // A no-op until CONFIG.posthog.enabled + .apiKey are both set (see
 // analytics.js and config.js) — safe to call unconditionally.
 initAnalytics();
+setProps({ stars_count: 0, stars_collected: [] });
 
 const ui = {
   loader:   document.getElementById('loader'),
@@ -139,14 +140,17 @@ let backgroundMusicStarted = false;
 
 function startBackgroundMusic() {
   if (!CONFIG.backgroundMusic?.src) return;
-  backgroundMusic.play().then(() => {
+  // INP: this runs in the capture phase of the very first pointerdown/keydown,
+  // so anything synchronous here delays that interaction's first paint.
+  // Starting playback on the next task lets the browser paint first.
+  setTimeout(() => backgroundMusic.play().then(() => {
     backgroundMusicStarted = true;
     paintMusicToggle();
   }).catch((error) => {
     backgroundMusicStarted = false;
     paintMusicToggle();
     console.warn('[MeraGHAR] background music could not start', error);
-  });
+  }), 0);
 }
 
 function paintMusicToggle() {
@@ -416,7 +420,16 @@ async function setup(root, animations = []) {
     // Session 79: every discovery — room, seat, door, stairs, the desk, and
     // every story star (easter eggs are tracked separately, from
     // story.onReveal below, since they never call discoveries.collect()).
-    track('discovery', { id: def.id, secret: !!def.secret, progress: `${discoveries.count}/${discoveries.total}` });
+    // Stars tracking: `collected` is the ordered list of counted stars this
+    // visitor has so far, `stars_count` how many. setProps() also stamps them
+    // on every later event (including the page-leave), so a visitor who left
+    // after three stars shows stars_count 3, and one who found none shows 0.
+    const collected = [...discoveries.found].filter((id) => discoveries.core.some((d) => d.id === id));
+    track('discovery', {
+      id: def.id, secret: !!def.secret, progress: `${discoveries.count}/${discoveries.total}`,
+      stars_count: discoveries.count, stars_total: discoveries.total, collected,
+    });
+    setProps({ stars_count: discoveries.count, stars_total: discoveries.total, stars_collected: collected });
   });
 
   doors = new Doors(scene, root, (def) => {
@@ -1244,6 +1257,48 @@ canvas.addEventListener('pointermove', (e) => {
   }
 });
 
+// INP: picking (screen/object tests, a BVH raycast against the house) and
+// path planning are the expensive part of a tap, and on a phone they ran
+// inside pointerup, before the browser could paint the touch. Handle the tap
+// after the next frame instead.
+function handleTap(x, y) {
+  if (!ready || blocked()) return;
+  // The desktop first (while you are sitting at a running machine, a
+  // click on the glass belongs to it), then objects you can act on,
+  // then the floor.
+  const onScreen = pickScreen(x, y);
+  const target = onScreen ? null : pickInteractive(x, y);
+  if (onScreen) {
+    desk.clickScreen(onScreen);
+  } else if (target) {
+    useInteractive(target);
+    ui.hint.classList.remove('show');
+  } else if (walker.seated) {
+    // Session 39: and now not even that. Inside an interaction a click on
+    // empty space does nothing at all — you stay put, you can still drag
+    // to look around, and only Esc or the Stand up / Step back button
+    // gets you out (Apoorva: a stray click shouldn't throw you out of
+    // the coffee table and walk you off somewhere else).
+    //
+    // Session 32: this used to also walk you to wherever the click
+    // landed, in the same motion as standing up — "up, and over there"
+    // in one click. On the sofa that meant a click anywhere near the TV
+    // (an easy accident — it fills a lot of the view) picked a floor
+    // point right against it and walked you up close enough to fill the
+    // screen, reading as an unwanted zoom. Standing up is now the whole
+    // reaction to this click; where to walk is a separate, deliberate
+    // second click on the floor, same as everywhere else in the house.
+  } else {
+    const p = pick(x, y);
+    if (p) {
+      guide.cancelTravel();     // the visitor is steering again
+      story.cancel();           // ...and has changed their mind about a star
+      goTo(p); flash(p);
+      ui.hint.classList.remove('show');
+    }
+  }
+}
+
 function endPointer(e) {
   if (!ready) return;
   if (coffeeDrag === e.pointerId) {
@@ -1259,40 +1314,8 @@ function endPointer(e) {
   if (pointers.size === 0 && dragStart) {
     const quick = performance.now() - dragStart.t < 500;
     if (!dragged && quick) {
-      // The desktop first (while you are sitting at a running machine, a
-      // click on the glass belongs to it), then objects you can act on,
-      // then the floor.
-      const onScreen = pickScreen(e.clientX, e.clientY);
-      const target = onScreen ? null : pickInteractive(e.clientX, e.clientY);
-      if (onScreen) {
-        desk.clickScreen(onScreen);
-      } else if (target) {
-        useInteractive(target);
-        ui.hint.classList.remove('show');
-      } else if (walker.seated) {
-        // Session 39: and now not even that. Inside an interaction a click on
-        // empty space does nothing at all — you stay put, you can still drag
-        // to look around, and only Esc or the Stand up / Step back button
-        // gets you out (Apoorva: a stray click shouldn't throw you out of
-        // the coffee table and walk you off somewhere else).
-        //
-        // Session 32: this used to also walk you to wherever the click
-        // landed, in the same motion as standing up — "up, and over there"
-        // in one click. On the sofa that meant a click anywhere near the TV
-        // (an easy accident — it fills a lot of the view) picked a floor
-        // point right against it and walked you up close enough to fill the
-        // screen, reading as an unwanted zoom. Standing up is now the whole
-        // reaction to this click; where to walk is a separate, deliberate
-        // second click on the floor, same as everywhere else in the house.
-      } else {
-        const p = pick(e.clientX, e.clientY);
-        if (p) {
-          guide.cancelTravel();     // the visitor is steering again
-          story.cancel();           // ...and has changed their mind about a star
-          goTo(p); flash(p);
-          ui.hint.classList.remove('show');
-        }
-      }
+      const x = e.clientX, y = e.clientY;
+      requestAnimationFrame(() => setTimeout(() => handleTap(x, y), 0));
     }
     dragStart = null;
   }
@@ -1365,9 +1388,10 @@ function updateMarker(x, y) {
 }
 
 let flashes = [];
+const flashGeo = new THREE.RingGeometry(0.3, 0.5, 32).rotateX(-Math.PI / 2);   // shared: one per click was wasted work
 function flash(p) {
   const m = new THREE.Mesh(
-    new THREE.RingGeometry(0.3, 0.5, 32).rotateX(-Math.PI / 2),
+    flashGeo,
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false })
   );
   m.position.set(p.x, p.y + 0.09, p.z);
@@ -1564,6 +1588,7 @@ function showThought(text, hold = 3.2) {
 // ---------------------------------------------------------------------------
 let last = performance.now();
 let fps = 60, warmup = 3;
+let slowEma = 16, slowN = 0, resScaleNow = 1;
 
 /** One simulation step. Split out from rendering so it can be driven
  *  deterministically from the console or a test:  MERAGHAR.step(1/60). */
@@ -1624,7 +1649,7 @@ function step(dt) {
     f.t += dt;
     f.m.scale.setScalar(1 + f.t * 5);
     f.m.material.opacity = Math.max(0, 0.9 - f.t * 1.8);
-    if (f.t > 0.6) { scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); flashes.splice(i, 1); }
+    if (f.t > 0.6) { scene.remove(f.m); f.m.material.dispose(); flashes.splice(i, 1); }
   }
   for (const p of previewMarkers) p.poseStar(camera, performance.now() / 1000, p.position.x);
 
@@ -1652,9 +1677,19 @@ function step(dt) {
 
 renderer.setAnimationLoop(() => {
   const now = performance.now();
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const rawMs = now - last;
+  const dt = Math.min(rawMs / 1000, 0.05);
   last = now;
   fps += (1 / Math.max(dt, 1e-4) - fps) * 0.05;
+  // Adaptive resolution: if frames stay slow (the main driver of poor INP,
+  // since a click's response waits for the next frame), shrink the canvas
+  // a step at a time instead of staying at full resolution forever.
+  if (ready) {
+    if (rawMs > 0 && rawMs < 250) {
+      slowEma = slowEma * 0.9 + rawMs * 0.1;
+      if (++slowN > 45 && slowEma > 26) { slowN = 0; slowEma = 16; setResolutionScale(resScaleNow -= 0.15); }
+    }
+  }
   if (ready) step(dt);
   renderer.render(scene, camera);
 });

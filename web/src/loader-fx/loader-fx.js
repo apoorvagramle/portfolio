@@ -126,7 +126,7 @@ class HouseLoader {
     this.counts = new Uint32Array(SORT_BUCKETS + 1);
     this.m = 0;
     this.depth = new Float32Array(H.n);
-    this.q = 1;                 // render scale; drops if the machine can't hold the frame rate
+    this.q = 0.85;              // render scale; drops if the machine can't hold the frame rate
     this._n = 0;
     this.yaw = 0.75;
     this.fit = this.fit.bind(this);
@@ -137,7 +137,7 @@ class HouseLoader {
   }
 
   fit() {
-    const dpr = Math.min(1.5, devicePixelRatio || 1) * (this.q ?? 1);
+    const dpr = Math.min(1.25, devicePixelRatio || 1) * (this.q ?? 1);
     this.canvas.width = Math.round(innerWidth * dpr);
     this.canvas.height = Math.round(innerHeight * dpr);
     this.W = this.canvas.width; this.H = this.canvas.height;
@@ -269,6 +269,7 @@ class HouseLoader {
     }
 
     const pal = this.pal, dim = 1 - dusk * 0.3;
+    const dq = Math.round(dusk * 20), styleCache = this._styleCache ??= new Map();
     for (let j = 0; j < m; j++) {
       const i = idx[j];
       if (!(H.mask[i] & visMask)) continue;     // buried from this side: nothing to draw
@@ -285,8 +286,23 @@ class HouseLoader {
       ctx.globalAlpha = k < 1 ? 0.3 + 0.7 * k : 1;
       for (const f of faces) {
         if (!(H.mask[i] & f.bit)) continue;
-        const s = f.shade * dim;
-        ctx.fillStyle = `rgb(${lerp(r * s, 255, lit) | 0},${lerp(g * s, 212, lit) | 0},${lerp(b * s, 138, lit) | 0})`;
+        // INP: building an `rgb()` string per face (~30k a frame) made the
+        // loader a main-thread hog while the GLB parses. Unlit faces repeat
+        // (palette x face x dusk step), so cache those strings.
+        let style;
+        if (lit === 0) {
+          const key = (H.col[i] * 64 + f.bit) * 32 + dq;
+          style = styleCache.get(key);
+          if (style === undefined) {
+            const s0 = f.shade * dim;
+            style = `rgb(${(r * s0) | 0},${(g * s0) | 0},${(b * s0) | 0})`;
+            styleCache.set(key, style);
+          }
+        } else {
+          const s = f.shade * dim;
+          style = `rgb(${lerp(r * s, 255, lit) | 0},${lerp(g * s, 212, lit) | 0},${lerp(b * s, 138, lit) | 0})`;
+        }
+        ctx.fillStyle = style;
         const p = f.pts;
         ctx.beginPath();
         ctx.moveTo(sx + p[0][0], sy2 + p[0][1]);

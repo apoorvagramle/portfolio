@@ -16,7 +16,24 @@ const W = CONFIG.world;
 function targetPixelRatio() {
   if (CONFIG.lowres) return 1;
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  return Math.min(W.maxPixelRatio ?? 2.5, dpr * (W.superSample ?? 1.5));
+  // INP fix: was dpr * 1.5 capped at 2.5, which on a 1080p/retina screen is
+  // 2-4x the pixels a click has to wait on. Supersample only while it is cheap
+  // (dpr 1 -> 1.25) and never go above 2; the adaptive scale below then trims
+  // further on machines that cannot hold the frame rate.
+  const base = Math.min(W.maxPixelRatio ?? 2, dpr * (W.superSample ?? 1.25));
+  return Math.max(0.75, base * resScale);
+}
+
+// Adaptive resolution: main.js calls this when frames run long. 1 = full.
+let resScale = 1;
+let _renderer = null;
+export function setResolutionScale(s) {
+  const next = Math.max(0.5, Math.min(1, s));
+  if (next === resScale || !_renderer) return resScale;
+  resScale = next;
+  _renderer.setPixelRatio(targetPixelRatio());
+  _renderer.setSize(innerWidth, innerHeight);
+  return resScale;
 }
 
 // Two WebGLRenderer construction flags that can't be part of any runtime
@@ -43,6 +60,7 @@ export function createWorld(canvas) {
     logarithmicDepthBuffer: !LOW_END,
   });
   if (LOW_END) console.log('[MeraGHAR] low-end render tier: no antialiasing, linear depth buffer');
+  _renderer = renderer;
   renderer.setPixelRatio(targetPixelRatio());
   renderer.setSize(innerWidth, innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
