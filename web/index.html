@@ -33,7 +33,7 @@
 <link rel="stylesheet" href="./src/book/book.css">
 <link rel="stylesheet" href="./src/loader-fx/loader-fx.css">
 <link rel="stylesheet" href="./src/finale/finale.css">
-<link rel="stylesheet" href="./src/tutorial/tutorial.css">
+<link rel="stylesheet" href="./src/help/help.css">
 <script type="importmap">
 {
   "imports": {
@@ -121,6 +121,12 @@
     <button id="musicToggle" class="navbtn" type="button" title="Music: off" aria-label="Turn music on" aria-pressed="false">
       <span class="musicOff"><img class="navIcon" src="src/assets/icons/note.png" alt="" draggable="false"></span>
       <span class="musicOn"><img class="navIcon" src="src/assets/icons/note.png" alt="" draggable="false"></span>
+    </button>
+
+    <!-- Session 85: "?" — how to move around (src/help/help.js). It pulses
+         until first opened, since the walk-through note is gone. -->
+    <button id="navHelp" class="navbtn nudge" type="button" title="How to move around" aria-label="How to move around" aria-expanded="false">
+      <span class="helpMark" aria-hidden="true">?</span>
     </button>
 
     <!-- The ✨, floating over #navStar rather than inside it — see the

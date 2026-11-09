@@ -36,7 +36,7 @@ import { IpadScreen } from '../ipad/ipad.js';
 import { GardenBook } from '../book/book.js';
 import { Butterfly } from '../butterfly/butterfly.js';
 import { Finale } from '../finale/finale.js';
-import { Tutorial } from '../tutorial/tutorial.js';
+import { Help } from '../help/help.js';
 import { initAnalytics, track, setProps } from '../analytics/analytics.js';
 
 // Let the ordinary Raycaster use the BVH (used for click-to-move picking).
@@ -74,6 +74,7 @@ const ui = {
   storyNext:  document.getElementById('storyNext'),
   storyClose: document.getElementById('storyClose'),
   musicToggle: document.getElementById('musicToggle'),
+  navHelp:      document.getElementById('navHelp'),
 
   // navbar
   navbar:       document.getElementById('navbar'),
@@ -119,7 +120,7 @@ const { renderer, scene, camera, hemi, ambient, updateIndoor, applyLens } = crea
 // Safe to call before any star exists; anything built later picks it up.
 initGlassStars(renderer);
 
-let fridge, walker, doors, rooms, nav, desk, tv, hallClock, mars, coffee, oven, seats, guide, story, colliderMesh, discoveries, navbar, footsteps, itemLabels, signs, starLights, musicDecor, ipad, gardenBook, butterfly, finale, tutorial;
+let fridge, walker, doors, rooms, nav, desk, tv, hallClock, mars, coffee, oven, seats, guide, story, colliderMesh, discoveries, navbar, footsteps, itemLabels, signs, starLights, musicDecor, ipad, gardenBook, butterfly, finale;
 let marker, ready = false;
 let intro = null;   // Session 26: the porch intro (src/intro.js)
 
@@ -601,11 +602,10 @@ async function setup(root, animations = []) {
   // played out, one centred glass card with the sign-off (finale.js). "Played
   // out" = nothing typing top-left, no full-screen takeover, no ride, and —
   // if the coffee star was the last — the cup actually finished.
-  // Session 81: the walk-through that runs BEFORE the porch intro (tutorial.js).
-  tutorial = new Tutorial({
-    THREE, scene, camera, walker, goTo,
-    isBusy: () => blocked() || !!story.hud || walker.seated || walker.riding,
-  });
+  // Session 85: the "?" at the foot of the navbar — how to move, for touch or
+  // keyboard. It replaced the old walk-through note, and Session 86 then
+  // dropped the walk-through step itself (tutorial.js is no longer loaded).
+  new Help({ button: ui.navHelp });
   finale = new Finale({
     isIdle: (lastId) => !story.hud && !story.blocking && !story.book?.holding && !intro?.blocking && !walker.riding && !walker.seated &&
       !(lastId === 'star:coffee' && coffee.armed && !coffee.done),
@@ -646,7 +646,7 @@ async function setup(root, animations = []) {
     // The coffee star's popup just said "make your coffee"; once it is out
     // of the way, the same words sit in the thought bubble while you do.
     if (coffee.armed && !coffeeHinted && !story.blocking) { coffeeHinted = true; coffee.hint(); }
-    if (hintShown || story.blocking || tutorial?.started) return;
+    if (hintShown || story.blocking) return;
     hintShown = true;
     setTimeout(() => {
       if (walker.seated || walker.riding || story.blocking) return;
@@ -770,7 +770,7 @@ async function setup(root, animations = []) {
   // is the porch shot, not a flash of the walker's view.
   if (!skipIntro && CONFIG.porchIntro) {
     doors.holdClosed = true;     // the front door stays shut until the choice
-    intro = startIntro({ THREE, scene, camera, canvas, cfg: CONFIG.porchIntro, deferred: true });
+    intro = startIntro({ THREE, scene, camera, canvas, cfg: CONFIG.porchIntro });
     window.MERAGHAR.intro = intro;
     intro.update(0);
   }
@@ -792,22 +792,14 @@ async function setup(root, animations = []) {
   // typewriter lines, then the two-column hire / explore choice.
   setTimeout(() => {
     if (intro) {
-      // Session 81: the tutorial goes first, in the visitor's own view. When
-      // its star pops, the porch shot eases in and the intro text starts.
-      tutorial.start({
-        onDone: () => {
-          intro.engage(1.6);
-          setTimeout(() => intro.begin(), 1100);
-        },
-      });
+      // Session 86: the walk-through is gone. The loader's ending fades
+      // straight into the porch shot (the intro camera took over above, before
+      // the loader lifted), so the typing starts the moment the house is up.
+      intro.begin();
       intro.choice.then((id) => {
-        // Session 77: the tutorial (Session 81) leaves the walker wherever its
-        // star was, facing wherever they last looked — often away from the
-        // house — and the porch shot's release eases back into THAT pose, so
-        // the view swung round the wrong way after the choice. The porch shot
-        // is still fully on at this moment (release has only just started),
-        // so put the walker back on the spawn spot facing the door, unseen:
-        // the release is the old short push-in toward the house again.
+        // The porch shot's release eases back into whatever pose the walker
+        // holds, so put it on the spawn spot facing the door while the shot is
+        // still fully on: the release is then the old short push-in.
         const P = CONFIG.player;
         walker.stop(); walker.keys?.clear?.();
         walker.feet.set(...P.spawn);
@@ -838,7 +830,7 @@ async function setup(root, animations = []) {
       return;
     }
     if (walker.seated || story.blocking) return;
-    ui.hint.classList.add('show');     // ?nointro — no intro, no walk-through
+    ui.hint.classList.add('show');     // ?nointro — no intro
   }, 700);
 }
 
@@ -1250,7 +1242,6 @@ canvas.addEventListener('pointermove', (e) => {
   if (dragStart && (Math.abs(e.clientX - dragStart.x) > 5 || Math.abs(e.clientY - dragStart.y) > 5)) dragged = true;
   if (dragged) {
     walker.look(dx, dy);
-    tutorial?.noteLook();
     walker.userLooking = true;
     lookHold = 1.6;
     marker.visible = false;
@@ -1627,7 +1618,6 @@ function step(dt) {
   guide.update(dt);
   story.update(dt);
   finale?.update(dt);
-  tutorial?.update(dt);
   navbar.update(dt);
   // Session 26: the porch intro is the last camera writer — it holds the
   // pulled-back porch shot, then eases back into the walker's view.

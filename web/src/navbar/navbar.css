@@ -279,3 +279,13 @@
   #mapKey { justify-content: center; }
   #mapGo { width: 100%; }
 }
+
+/* Session 85: the "?" — how to move around (help.js). */
+#navHelp { --tint: var(--nav-map); position: relative; }
+#navHelp .helpMark { font-family: var(--font-major, inherit); font-size: 26px; font-weight: 700; line-height: 1; color: #f6efe4; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
+#navHelp.nudge { animation: helpNudge 2.2s ease-in-out infinite; }
+@keyframes helpNudge {
+  0%, 100% { box-shadow: 0 12px 30px rgba(0,0,0,.38), inset 0 1px 1px rgba(255,255,255,.34), 0 0 0 0 rgba(255,226,138,.0); }
+  50%      { box-shadow: 0 12px 30px rgba(0,0,0,.38), inset 0 1px 1px rgba(255,255,255,.34), 0 0 0 7px rgba(255,226,138,.28); }
+}
+@media (prefers-reduced-motion: reduce) { #navHelp.nudge { animation: none; border-color: rgba(255,226,138,.5); } }

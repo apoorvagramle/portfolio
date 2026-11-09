@@ -247,6 +247,7 @@ export class Navbar {
     this.glass.push(liquidGlass(this.ui.navStar, btn));
     this.glass.push(liquidGlass(this.ui.navContact, btn));
     if (this.ui.musicToggle) this.glass.push(liquidGlass(this.ui.musicToggle, btn));
+    if (this.ui.navHelp) this.glass.push(liquidGlass(this.ui.navHelp, btn));
 
     // The ✨ is its own piece of glass: a 28px sheet clipped to the
     // three-sparkle silhouette (the clip-path lives in index.html), so the
